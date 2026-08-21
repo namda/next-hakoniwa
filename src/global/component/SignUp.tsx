@@ -144,6 +144,7 @@ function SignUpForm() {
           <TextFieldRHF
             required
             name="userName"
+            autoComplete="nickname"
             control={control}
             id="user-name"
             placeholder="User Name"
@@ -165,7 +166,7 @@ function SignUpForm() {
             required
             name="id"
             pattern="^[a-zA-Z0-9]+$"
-            autoComplete="off"
+            autoComplete="username"
             control={control}
             id="user-id"
             placeholder="User Id"
@@ -177,7 +178,7 @@ function SignUpForm() {
             required
             name="password"
             pattern="^[\x21-\x7E]+$"
-            autoComplete="off"
+            autoComplete="new-password"
             control={control}
             type="password"
             id="password"
@@ -190,7 +191,7 @@ function SignUpForm() {
             required
             name="passwordConfirm"
             pattern="^[\x21-\x7E]+$"
-            autoComplete="off"
+            autoComplete="new-password"
             control={control}
             type="password"
             id="password-confirm"
