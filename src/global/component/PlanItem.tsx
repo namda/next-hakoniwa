@@ -176,7 +176,7 @@ const PlanItem = memo(
       return (
         <div
           ref={itemRef}
-          className={`card-border mb-0.5 flex items-stretch gap-y-1 ${isChange ? 'bg-orange-50' : 'bg-teal-50'} ${isDragged ? 'opacity-50' : ''}`}
+          className={`card-border mb-0.5 flex items-stretch gap-y-1 md:gap-y-0 ${isChange ? 'bg-orange-50' : 'bg-teal-50'} ${isDragged ? 'opacity-50' : ''}`}
         >
           {/* ドラッグハンドル: pointerdown のみを受け付ける */}
           <div
@@ -190,7 +190,7 @@ const PlanItem = memo(
               </span>
             </div>
             <span
-              className={`md:text-md inline-block min-w-[3em] self-center font-mono text-sm text-shadow-xs/30 ${immediate ? 'text-sky-500' : ''}`}
+              className={`inline-block min-w-[3em] self-center font-mono text-sm text-shadow-xs/30 md:min-w-[2.75em] md:text-sm md:leading-none ${immediate ? 'text-sky-500' : ''}`}
             >
               {`T${turn}`}
             </span>
@@ -198,9 +198,9 @@ const PlanItem = memo(
 
           <button
             onClick={toggleEdit}
-            className={`mx-2 bg-sky-700 px-1.5 text-white hover:cursor-pointer hover:bg-sky-600`}
+            className={`mx-2 bg-sky-700 px-1.5 text-white hover:cursor-pointer hover:bg-sky-600 md:mx-1 md:px-1`}
           >
-            <p className="text-md text-center font-semibold [writing-mode:vertical-rl]">
+            <p className="text-center text-sm font-semibold [writing-mode:vertical-rl] md:text-xs md:leading-none">
               {edit ? 'Close' : 'Edit'}
             </p>
           </button>
@@ -217,26 +217,26 @@ const PlanItem = memo(
                   </p>
                 }
               >
-                <div className="grid grid-cols-[auto] grid-rows-[auto_auto] items-center">
+                <div className="grid grid-cols-[auto] grid-rows-[auto_auto] items-center md:grid-cols-[auto_auto] md:grid-rows-1 md:gap-2">
                   <div>
                     {!edit && (
                       <div
-                        className={`font-mono text-sm font-extrabold text-shadow-md md:text-base`}
+                        className={`font-mono text-sm font-extrabold text-shadow-md md:text-sm md:leading-tight`}
                       >{`(${x},${y})`}</div>
                     )}
                     <div
-                      className={`ml-2 flex items-center gap-1.5 text-sm font-medium text-shadow-xs/30 md:text-xl ${immediate ? 'text-sky-500' : 'text-amber-500'}`}
+                      className={`ml-2 flex items-center gap-1.5 text-sm font-medium text-shadow-xs/30 md:ml-1 md:gap-1 md:text-base md:leading-tight ${immediate ? 'text-sky-500' : 'text-amber-500'}`}
                     >
                       {name}
                       {isShowTimes(times, edit) && (
-                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-rose-600 px-2 py-0.5 font-mono text-xs font-bold text-white shadow-sm md:text-sm">
+                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-rose-600 px-2 py-0.5 font-mono text-xs font-bold text-white shadow-sm md:px-1.5 md:py-0 md:text-xs">
                           ×{times}
                         </span>
                       )}
                     </div>
                   </div>
                   {idShowToIsland(fromUuid, to_uuid) && (
-                    <div className="rows-2 mt-1 mb-2 ml-2 shrink-0 truncate rounded-full bg-teal-700 px-2 py-0.5 text-center font-mono text-xs font-bold text-white shadow-sm md:text-sm">
+                    <div className="mt-1 mb-2 ml-2 shrink-0 truncate rounded-full bg-teal-700 px-2 py-0.5 text-center font-mono text-xs font-bold text-white shadow-sm md:m-0 md:px-1.5 md:py-0 md:text-xs">
                       {`目標:${islandOptions.find((opt) => opt.value === to_uuid)?.label ?? 'Unknown'}`}
                     </div>
                   )}
@@ -257,10 +257,10 @@ const PlanItem = memo(
 
           <button
             onClick={() => onDelete(id)}
-            className="ml-auto p-2 text-gray-400 transition-colors hover:cursor-pointer hover:text-red-600 focus:outline-none"
+            className="ml-auto p-2 text-gray-400 transition-colors hover:cursor-pointer hover:text-red-600 focus:outline-none md:p-1"
             aria-label="Delete plan"
           >
-            <IoTrash className="text-xl" />
+            <IoTrash className="text-xl md:text-base" />
           </button>
         </div>
       );

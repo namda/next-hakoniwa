@@ -46,21 +46,28 @@ function MenuHeader({ developData, view }: { developData?: Props['developData'];
   const titleText = developData?.current_title_name?.trim() ?? '';
 
   return (
-    <div className="text-bold mt-2 text-center text-xl text-red-900 lg:text-2xl xl:text-3xl">
-      <div className="grid grid-cols-[auto_auto] justify-center">
-        <div className="truncate">{`「${islandName}`}</div>
-        <div>{`島」`}</div>
+    <div className="text-bold mt-2 px-2 text-center text-red-900 md:mt-1">
+      <div className="flex flex-col items-center justify-center md:flex-row md:flex-wrap md:items-baseline md:gap-x-3 md:gap-y-0.5">
+        <div className="max-w-full text-xl leading-tight break-words whitespace-normal lg:text-2xl xl:text-3xl">
+          {`「${islandName}島」`}
+        </div>
+        <span className="text-lg break-words whitespace-normal text-black lg:text-xl xl:text-2xl">
+          {VIEW_LABEL[view]}
+        </span>
+        {titleText !== '' ? (
+          <div className="text-lg break-words whitespace-normal text-cyan-800 lg:text-xl xl:text-2xl">
+            {`[${titleText}]`}
+          </div>
+        ) : null}
+        <div className="text-base whitespace-normal text-black">
+          {'ミサイル保有数: '}
+          <span className="whitespace-nowrap">
+            <span className="font-mono text-lg font-bold text-red-900">{developData?.missile}</span>
+            {'発'}
+          </span>
+        </div>
       </div>
-      <span className="text-lg text-black lg:text-xl xl:text-2xl">{VIEW_LABEL[view]}</span>
-      {titleText !== '' ? (
-        <div className="ml-2 text-lg text-cyan-800 lg:text-xl xl:text-2xl">{`[${titleText}]`}</div>
-      ) : null}
-      <div className="text-center text-base text-black">
-        {'ミサイル保有数: '}
-        <span className="font-mono text-lg font-bold text-red-900">{developData?.missile}</span>
-        {'発'}
-      </div>
-      <hr className="my-2 border-gray-200" />
+      <hr className="my-2 border-gray-200 md:my-1" />
     </div>
   );
 }
@@ -96,7 +103,7 @@ function MenuPanels({
     <div className={'flex flex-1 flex-col overflow-hidden'}>
       <Activity mode={activityMode(view, 'plan')}>
         <PlanList
-          className="flex-1 overflow-y-auto p-2"
+          className="flex-1 overflow-y-auto p-2 md:p-1"
           islandList={islandList}
           turn={turnData?.turn}
           isPlanLoading={isPlanLoading}
