@@ -155,7 +155,7 @@ function SignInForm({ open, openToggle }: { open: boolean; openToggle: (value: b
             required
             name="id"
             pattern="^[a-zA-Z0-9]+$"
-            autoComplete="off"
+            autoComplete="username"
             control={control}
             id="user-id"
             placeholder="User Id"
@@ -167,7 +167,7 @@ function SignInForm({ open, openToggle }: { open: boolean; openToggle: (value: b
             required
             name="password"
             pattern="^[\x21-\x7E]+$"
-            autoComplete="off"
+            autoComplete="current-password"
             control={control}
             type="password"
             id="password"
