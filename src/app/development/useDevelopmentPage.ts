@@ -21,6 +21,12 @@ import { islandSightStore } from '@/global/store/api/public/islandSight';
 import { turnStore } from '@/global/store/api/public/turn';
 import { usePlanDataStore } from '@/global/store/usePlanDataStore';
 import { useEffect, useRef, useState } from 'react';
+import {
+  getCurrentScrollY,
+  getDevelopmentMapPageTopFromRect,
+  getDevelopmentMapRightReservePx,
+  shouldUseCompactDevelopmentLayout,
+} from './developmentLayout';
 
 const normalizePlanItems = (initPlans: Plan[], uuid: string) => {
   const defaultPlans = Array.from({ length: META_DATA.PLAN_LENGTH }, (_, i) => ({
@@ -153,10 +159,18 @@ export const useDevelopmentPage = () => {
   const [lazyFlag, setLazyFlag] = useState(false);
   const { width } = useWindowSize();
   const [showMenu, setShowMenu] = useState(false);
-  const isMobile = width < 1280;
+  const [viewportBottom, setViewportBottom] = useState(0);
 
   const [mapRect, mapCallback] = useClientRect<HTMLDivElement>();
   const [listRect, listCallback] = useClientRect<HTMLDivElement>();
+
+  const scrollY = getCurrentScrollY();
+  const isMobile = shouldUseCompactDevelopmentLayout({
+    viewportWidth: width,
+    viewportBottom,
+    mapRect,
+    scrollY,
+  });
 
   const [pendingLoginBonus, setPendingLoginBonus] = useState<LoginBonusResult | null>(null);
   const [isLoginBonusClosed, setIsLoginBonusClosed] = useState(false);
@@ -183,8 +197,40 @@ export const useDevelopmentPage = () => {
     }
   };
 
+  useEffect(() => {
+    const probe = document.createElement('div');
+    probe.style.position = 'fixed';
+    probe.style.width = '0';
+    probe.style.height = 'var(--real-vh-minus-footer)';
+    probe.style.visibility = 'hidden';
+    probe.style.pointerEvents = 'none';
+    document.body.appendChild(probe);
+
+    let frame = 0;
+    const updateViewportBottom = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        setViewportBottom(probe.getBoundingClientRect().height);
+      });
+    };
+
+    updateViewportBottom();
+    window.addEventListener('resize', updateViewportBottom);
+    window.visualViewport?.addEventListener('resize', updateViewportBottom);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', updateViewportBottom);
+      window.visualViewport?.removeEventListener('resize', updateViewportBottom);
+      probe.remove();
+    };
+  }, []);
+
+  const mapRightReserve = getDevelopmentMapRightReservePx(isMobile);
+  const mapPageTop = getDevelopmentMapPageTopFromRect(mapRect, scrollY);
+
   const mapSize = mapRect
-    ? `min(calc(var(--real-vw) - ${mapRect.x}px - 0.25rem), calc(var(--real-vh-minus-footer) - ${mapRect.y}px))`
+    ? `min(calc(var(--real-vw) - ${mapRect.x}px - ${mapRightReserve}px), calc(var(--real-vh-minus-footer) - ${mapPageTop}px))`
     : 'min(var(--real-vw), var(--real-vh-minus-footer))';
 
   const listHeight = listRect

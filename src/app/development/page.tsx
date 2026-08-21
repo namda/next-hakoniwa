@@ -30,7 +30,7 @@ type SharedMenuProps = Omit<
 
 const getMainGridClassName = (isMobile: boolean) => {
   if (isMobile) return 'grid gap-1 grid-cols-1';
-  return 'grid gap-1 grid-cols-[auto_1fr]';
+  return 'grid gap-1 grid-cols-[auto_minmax(28rem,40rem)] justify-center';
 };
 
 function MobileDevelopmentMenu({
