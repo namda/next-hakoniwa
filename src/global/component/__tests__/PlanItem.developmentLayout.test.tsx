@@ -42,6 +42,7 @@ const getProps = ({ isCompact, edit }: { isCompact: boolean; edit: boolean }) =>
       plan: 'financing',
     },
     onUpdate: vi.fn(),
+    orderNo: 1,
     turn: 1,
     onDelete: vi.fn(),
     isDragged: false,
@@ -53,6 +54,7 @@ describe('PlanItem development layout', () => {
     render(<PlanItem {...getProps({ isCompact: true, edit: true })} />);
 
     expect(screen.getByTestId('plan-item-modal')).toBeDefined();
+    expect(screen.getByText('No.1')).toBeDefined();
     expect(screen.getByText('T1').className).toContain('text-sm');
   });
 
@@ -60,6 +62,7 @@ describe('PlanItem development layout', () => {
     render(<PlanItem {...getProps({ isCompact: false, edit: false })} />);
 
     expect(screen.queryByTestId('plan-item-modal')).toBeNull();
+    expect(screen.getByText('No.1')).toBeDefined();
     expect(screen.getByText('T1').className).toContain('text-xs');
     expect(screen.getByText('資金繰り').className).toContain('text-sm');
   });

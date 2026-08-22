@@ -29,7 +29,8 @@ type SharedMenuProps = Omit<
 >;
 
 const getMainGridClassName = (isMobile: boolean) => {
-  if (isMobile) return 'grid w-full min-w-0 grid-cols-1 gap-1 overflow-x-clip';
+  if (isMobile)
+    return 'grid w-full min-w-0 grid-cols-1 gap-1 overflow-x-clip pb-[calc(env(safe-area-inset-bottom,0px)+6rem)]';
   return 'grid w-full min-w-0 grid-cols-[minmax(0,1fr)_22rem] gap-1 overflow-x-clip';
 };
 
