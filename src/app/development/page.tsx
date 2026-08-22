@@ -29,8 +29,8 @@ type SharedMenuProps = Omit<
 >;
 
 const getMainGridClassName = (isMobile: boolean) => {
-  if (isMobile) return 'grid gap-1 grid-cols-1';
-  return 'grid gap-1 grid-cols-[auto_1fr]';
+  if (isMobile) return 'grid w-full min-w-0 grid-cols-1 gap-1 overflow-x-clip';
+  return 'grid w-full min-w-0 grid-cols-[minmax(0,1fr)_22rem] gap-1 overflow-x-clip';
 };
 
 function MobileDevelopmentMenu({
@@ -92,6 +92,48 @@ function MobileDevelopmentMenu({
   );
 }
 
+function DevelopmentMapPanel({
+  panelCallback,
+  islandDataMode,
+  islandData,
+  displayedLoading,
+  islandName,
+  turn,
+  mapData,
+  developUuid,
+  targetUuid,
+}: {
+  panelCallback: (node: HTMLDivElement | null) => void;
+  islandDataMode: ComponentProps<typeof IslandData>['mode'];
+  islandData: ComponentProps<typeof IslandData>['data'];
+  displayedLoading: boolean;
+  islandName?: string;
+  turn?: number;
+  mapData?: ComponentProps<typeof HakoniwaMap>['data'];
+  developUuid?: string;
+  targetUuid?: string;
+}) {
+  return (
+    <div ref={panelCallback} className="flex min-w-0 flex-col items-stretch gap-1 px-1">
+      <div className="w-full [&>div]:my-0 [&>div]:w-full [&>div]:max-w-full">
+        <IslandData mode={islandDataMode} data={islandData} />
+      </div>
+      <HakoniwaMap
+        className="w-full max-w-full"
+        style={{ width: '100%', height: 'auto', maxHeight: 'none' }}
+        isLoading={displayedLoading}
+        islandName={islandName}
+        turn={turn}
+        data={mapData}
+        isDevelop={!!developUuid}
+        uuid={developUuid}
+        targetUuid={targetUuid}
+        restrictToAttackOrAid={islandDataMode === 'sight'}
+      />
+    </div>
+  );
+}
+
 export default function IslandList() {
   const {
     developData,
@@ -112,11 +154,10 @@ export default function IslandList() {
     setView,
     setLazyFlag,
     listHeight,
-    mapSize,
     showMenu,
     setShowMenu,
     isMobile,
-    mapCallback,
+    mapPanelCallback,
     listCallback,
     showLoginBonus,
     setShowLoginBonus,
@@ -235,33 +276,28 @@ export default function IslandList() {
       </div>
 
       <div className={getMainGridClassName(isMobile)}>
-        <div className="grid grid-rows-[auto_1fr] items-start justify-items-center gap-1 px-1">
-          <IslandData
-            mode={isOtherIslandView ? 'sight' : 'development'}
-            data={displayedIslandData}
-          />
-          <HakoniwaMap
-            ref={mapCallback}
-            style={{ width: mapSize, height: 'auto', maxHeight: mapSize }}
-            isLoading={displayedLoading}
-            islandName={displayedIslandData?.island_name}
-            turn={turnData.get?.turn}
-            data={displayedIslandData?.island_info}
-            isDevelop={!!developData.get?.uuid}
-            uuid={developData.get?.uuid}
-            targetUuid={isOtherIslandView ? selectedIslandUuid : developData.get?.uuid}
-            restrictToAttackOrAid={isOtherIslandView}
-          />
-        </div>
+        <DevelopmentMapPanel
+          panelCallback={mapPanelCallback}
+          islandDataMode={isOtherIslandView ? 'sight' : 'development'}
+          islandData={displayedIslandData}
+          displayedLoading={displayedLoading}
+          islandName={displayedIslandData?.island_name}
+          turn={turnData.get?.turn}
+          mapData={displayedIslandData?.island_info}
+          developUuid={developData.get?.uuid}
+          targetUuid={isOtherIslandView ? selectedIslandUuid : developData.get?.uuid}
+        />
 
         {/* Desktop View: Always show menu */}
         {!isMobile && (
-          <MenuContent
-            isMobile={false}
-            listCallback={listCallback}
-            listHeight={listHeight}
-            {...sharedMenuProps}
-          />
+          <div className="w-full min-w-0">
+            <MenuContent
+              isMobile={false}
+              listCallback={listCallback}
+              listHeight={listHeight}
+              {...sharedMenuProps}
+            />
+          </div>
         )}
 
         {isMobile && (

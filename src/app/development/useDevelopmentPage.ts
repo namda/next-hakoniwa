@@ -21,6 +21,7 @@ import { islandSightStore } from '@/global/store/api/public/islandSight';
 import { turnStore } from '@/global/store/api/public/turn';
 import { usePlanDataStore } from '@/global/store/usePlanDataStore';
 import { useEffect, useRef, useState } from 'react';
+import { shouldUseCompactDevelopmentLayout } from './developmentLayout';
 
 const normalizePlanItems = (initPlans: Plan[], uuid: string) => {
   const defaultPlans = Array.from({ length: META_DATA.PLAN_LENGTH }, (_, i) => ({
@@ -153,10 +154,12 @@ export const useDevelopmentPage = () => {
   const [lazyFlag, setLazyFlag] = useState(false);
   const { width } = useWindowSize();
   const [showMenu, setShowMenu] = useState(false);
-  const isMobile = width < 1280;
+  const [, listCallback] = useClientRect<HTMLDivElement>();
+  const [mapPanelRect, mapPanelCallback] = useClientRect<HTMLDivElement>();
 
-  const [mapRect, mapCallback] = useClientRect<HTMLDivElement>();
-  const [listRect, listCallback] = useClientRect<HTMLDivElement>();
+  const isMobile = shouldUseCompactDevelopmentLayout({
+    viewportWidth: width,
+  });
 
   const [pendingLoginBonus, setPendingLoginBonus] = useState<LoginBonusResult | null>(null);
   const [isLoginBonusClosed, setIsLoginBonusClosed] = useState(false);
@@ -183,13 +186,7 @@ export const useDevelopmentPage = () => {
     }
   };
 
-  const mapSize = mapRect
-    ? `min(calc(var(--real-vw) - ${mapRect.x}px - 0.25rem), calc(var(--real-vh-minus-footer) - ${mapRect.y}px))`
-    : 'min(var(--real-vw), var(--real-vh-minus-footer))';
-
-  const listHeight = listRect
-    ? `calc(var(--real-vh-minus-footer) - ${listRect.y}px)`
-    : 'var(--real-vh-minus-footer)';
+  const listHeight = mapPanelRect ? `${mapPanelRect.height}px` : 'var(--real-vh-minus-footer)';
 
   useEffect(() => {
     fetchDevelop({ method: 'GET' });
@@ -300,11 +297,10 @@ export const useDevelopmentPage = () => {
     lazyFlag,
     setLazyFlag,
     listHeight,
-    mapSize,
     showMenu,
     setShowMenu,
     isMobile,
-    mapCallback,
+    mapPanelCallback,
     listCallback,
     isLoading,
     showLoginBonus,

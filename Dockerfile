@@ -19,7 +19,7 @@ FROM node:24.14.1-slim AS builder
 # node公式イメージに含まれる非rootユーザー(node)を利用する
 USER node
 WORKDIR /app
-COPY . .
+COPY --chown=node:node . .
 
 # productionビルド時にTelemetryをオプトアウト（任意）
 ENV NEXT_TELEMETRY_DISABLED 1

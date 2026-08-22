@@ -15,6 +15,7 @@ export type LocalPlanItem = Plan & {
 };
 
 export type PlanItemProps = {
+  isCompact: boolean;
   fromUuid?: string;
   isChange: boolean;
   islandOptions: Array<{ label: string; value: string }>;
@@ -31,6 +32,7 @@ export type PlanListProps = {
   ref?: Ref<HTMLDivElement>;
   className?: string;
   style?: CSSProperties;
+  isCompact?: boolean;
   islandList?: { uuid: string; island_name: string }[];
   isPlanLoading: boolean;
   turn?: number;
