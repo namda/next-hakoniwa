@@ -12,7 +12,18 @@ import {
 } from '@/global/define/planType';
 import { isEqual } from '@/global/function/collection';
 import Image from 'next/image';
-import { CSSProperties, forwardRef, Fragment, memo, useEffect, useMemo, useState } from 'react';
+import {
+  CSSProperties,
+  forwardRef,
+  Fragment,
+  memo,
+  MouseEvent as ReactMouseEvent,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { HiOutlineQuestionMarkCircle } from 'react-icons/hi2';
 import { getMapDefine, getMapImpPath, getMapInfoText, getMapName } from '../define/mapType';
@@ -126,6 +137,7 @@ type HakoniwaMapProps = {
 
 /* Mapのピクセルサイズ */
 const baseMapPixel = 32;
+const continuousInputStorageKey = 'next-hakoniwa:development:continuous-input';
 
 type MapClickModalProps = {
   x: number;
@@ -305,9 +317,30 @@ const MapClickModal = ({
   const [category, setCategory] = useState<'優先' | '開発' | '建設' | '運営' | '攻撃' | '支援'>(
     restrictToAttackOrAid ? '攻撃' : '優先'
   );
-  const [isContinuous, setIsContinuous] = useState(true);
+  const [isContinuous, setIsContinuous] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem(continuousInputStorageKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(continuousInputStorageKey, String(isContinuous));
+    } catch {
+      // localStorageを利用できない環境では現在のモーダル内の状態だけを使う
+    }
+  }, [isContinuous]);
   const effectiveCategory =
     restrictToAttackOrAid && category !== '攻撃' && category !== '支援' ? '攻撃' : category;
+  const [planSelectRows, setPlanSelectRows] = useState(1);
+  const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
+  const [modalBodyElement, setModalBodyElement] = useState<HTMLDivElement | null>(null);
+  const collapsedBodyHeightRef = useRef<number | null>(null);
+  const twoRowBodyHeightRef = useRef<number | null>(null);
+  const planSelectProbeCompleteRef = useRef(false);
 
   const { control, setValue, getValues } = useForm<{
     plan: string;
@@ -384,6 +417,111 @@ const MapClickModal = ({
     });
   }, [x, y, data, effectiveCategory, predictedType, restrictToAttackOrAid]);
 
+  const desktopPlanOptions = useMemo(() => {
+    if (planSelectRows <= 1) return planOptions;
+
+    return planOptions.map((option) => ({
+      ...option,
+      onMouseEnter: (event: ReactMouseEvent<HTMLOptionElement>) => {
+        setHoveredPlan(event.currentTarget.value);
+      },
+    }));
+  }, [planOptions, planSelectRows]);
+
+  useLayoutEffect(() => {
+    collapsedBodyHeightRef.current = null;
+    twoRowBodyHeightRef.current = null;
+    planSelectProbeCompleteRef.current = false;
+    setPlanSelectRows(1);
+  }, [effectiveCategory, isMobile, open, planOptions.length]);
+
+  useLayoutEffect(() => {
+    const viewport = modalBodyElement?.parentElement;
+    if (!viewport) return;
+
+    const observer = new ResizeObserver(() => {
+      collapsedBodyHeightRef.current = null;
+      twoRowBodyHeightRef.current = null;
+      planSelectProbeCompleteRef.current = false;
+      setPlanSelectRows(1);
+    });
+
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [modalBodyElement]);
+
+  useLayoutEffect(() => {
+    const viewport = modalBodyElement?.parentElement;
+
+    if (isMobile || !open || !modalBodyElement || !viewport || planOptions.length <= 1) {
+      if (planSelectRows !== 1) {
+        setPlanSelectRows(1);
+      }
+      return;
+    }
+
+    if (planSelectProbeCompleteRef.current) return;
+
+    if (planSelectRows === 1) {
+      const collapsedBodyHeight = modalBodyElement.offsetHeight;
+      collapsedBodyHeightRef.current = collapsedBodyHeight;
+
+      const freeHeight = viewport.clientHeight - collapsedBodyHeight - 1;
+      if (freeHeight > 0) {
+        setPlanSelectRows(2);
+      } else {
+        planSelectProbeCompleteRef.current = true;
+      }
+      return;
+    }
+
+    const collapsedBodyHeight = collapsedBodyHeightRef.current;
+    if (collapsedBodyHeight === null) return;
+
+    const freeHeight = viewport.clientHeight - collapsedBodyHeight - 1;
+
+    if (planSelectRows === 2) {
+      const twoRowBodyHeight = modalBodyElement.offsetHeight;
+      const firstRowGrowth = twoRowBodyHeight - collapsedBodyHeight;
+
+      if (firstRowGrowth <= 0 || firstRowGrowth > freeHeight) {
+        planSelectProbeCompleteRef.current = true;
+        setPlanSelectRows(1);
+        return;
+      }
+
+      if (planOptions.length === 2) {
+        planSelectProbeCompleteRef.current = true;
+        return;
+      }
+
+      twoRowBodyHeightRef.current = twoRowBodyHeight;
+      setPlanSelectRows(3);
+      return;
+    }
+
+    if (planSelectRows === 3) {
+      const twoRowBodyHeight = twoRowBodyHeightRef.current;
+      if (twoRowBodyHeight === null) return;
+
+      const threeRowBodyHeight = modalBodyElement.offsetHeight;
+      const firstRowGrowth = twoRowBodyHeight - collapsedBodyHeight;
+      const additionalRowGrowth = threeRowBodyHeight - twoRowBodyHeight;
+
+      planSelectProbeCompleteRef.current = true;
+
+      if (additionalRowGrowth <= 0) {
+        setPlanSelectRows(2);
+        return;
+      }
+
+      const remainingHeight = Math.max(0, freeHeight - firstRowGrowth);
+      const rowsThatFit = 2 + Math.floor(remainingHeight / additionalRowGrowth);
+
+      setPlanSelectRows(Math.max(2, Math.min(planOptions.length, rowsThatFit)));
+    }
+  }, [isMobile, modalBodyElement, open, planOptions.length, planSelectRows]);
+
   // planOptionsが変わったときに、現在のplanが選択肢になければリセット
   useEffect(() => {
     const currentPlan = getValues('plan');
@@ -411,6 +549,16 @@ const MapClickModal = ({
       planDescription: planDefine.description,
     };
   }, [plan, planOptions]);
+
+  const hoveredPlanDescription = useMemo(() => {
+    if (
+      !hoveredPlan ||
+      !planOptions.some((option) => String(option.value) === hoveredPlan)
+    ) {
+      return '';
+    }
+    return getPlanDefine(hoveredPlan).description;
+  }, [hoveredPlan, planOptions]);
 
   useEffect(() => {
     // planが変更された場合は、その計画で許可される最小値へ戻す
@@ -489,8 +637,9 @@ const MapClickModal = ({
           {isMobile && (
             <button
               type="button"
-              aria-label="計画の説明を表示"
-              onClick={() => setShowPlanHelp(true)}
+              aria-label={showPlanHelp ? '計画の説明を閉じる' : '計画の説明を表示'}
+              aria-expanded={showPlanHelp}
+              onClick={() => setShowPlanHelp((current) => !current)}
               disabled={!planDescription}
               className="inline-flex h-8 w-8 items-center justify-center rounded-full text-emerald-600 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent dark:text-emerald-400"
             >
@@ -499,17 +648,36 @@ const MapClickModal = ({
           )}
         </div>
         {isMobile ? (
-          <SelectRHF name="plan" className="w-full" control={control} options={planOptions} />
+          <>
+            <SelectRHF name="plan" className="w-full" control={control} options={planOptions} />
+            {showPlanHelp && planDescription && (
+              <div className="mt-2 rounded-md bg-gray-100 p-3 text-left text-sm leading-relaxed text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                {planDescription}
+              </div>
+            )}
+          </>
         ) : (
           <Tooltip
             position="bottom"
+            hoverOnly={planSelectRows > 1}
             tooltipComp={
               <p className="max-w-sm min-w-64 text-left text-sm whitespace-pre-wrap md:text-base">
-                {planDescription}
+                {planSelectRows > 1 && hoveredPlanDescription
+                  ? hoveredPlanDescription
+                  : planDescription}
               </p>
             }
           >
-            <SelectRHF name="plan" className="w-full" control={control} options={planOptions} />
+            <SelectRHF
+              name="plan"
+              className="w-full"
+              control={control}
+              options={desktopPlanOptions}
+              onMouseLeave={() => setHoveredPlan(null)}
+              size={
+                planSelectRows > 1 ? Math.min(planSelectRows, planOptions.length) : undefined
+              }
+            />
           </Tooltip>
         )}
       </div>
@@ -581,23 +749,12 @@ const MapClickModal = ({
         openToggle={handleMainModalOpenToggle}
         header={`${mapInfoText}`}
         body={body}
+        bodyRef={setModalBodyElement}
         footer={footer}
+        stickyFooter={true}
         portal={false}
         bottomOnMobile={true}
-        className="!max-h-[96%] !w-[96%] !max-w-md"
-      />
-      <Modal
-        open={open && showPlanHelp}
-        openToggle={setShowPlanHelp}
-        header="計画の説明"
-        body={
-          <p className="min-h-[4rem] text-left text-sm leading-relaxed whitespace-pre-wrap text-gray-700 md:text-base dark:text-gray-200">
-            {planDescription || '計画を選択すると説明が表示されます。'}
-          </p>
-        }
-        portal={false}
-        bottomOnMobile={true}
-        className="!max-h-[70%] !w-[92%] !max-w-sm"
+        className="!h-[96%] !max-h-[96%] !w-[96%] !max-w-md"
       />
     </>
   );
@@ -699,6 +856,7 @@ export default memo(
               >
                 <Tooltip
                   position={tooltipPosition}
+                  hoverOnly={isDevelop}
                   tooltipComp={
                     <MapInfoTips
                       islandName={islandName}

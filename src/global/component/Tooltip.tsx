@@ -73,11 +73,14 @@ export const Tooltip = memo(
     tooltipComp,
     children,
     smallText,
+    hoverOnly = false,
   }: {
     position?: string;
     tooltipComp: ReactNode | string;
     children: ReactNode;
     smallText?: boolean;
+    /** クリックでは開閉せず、マウスホバー中だけ表示する */
+    hoverOnly?: boolean;
   }) {
     const sizeClass = smallText ? 'text-sm' : undefined;
     const positionStyle = GetPosition(position);
@@ -97,6 +100,10 @@ export const Tooltip = memo(
     };
 
     const handleMouseEnter = () => {
+      if (hoverOnly && !window.matchMedia('(hover: hover)').matches) {
+        return;
+      }
+
       updatePosition();
       setVisible(true);
       setAdjustedStyle({ visibility: 'hidden' });
@@ -107,6 +114,8 @@ export const Tooltip = memo(
     };
 
     const handleClick = () => {
+      if (hoverOnly) return;
+
       if (visible) {
         setVisible(false);
       } else {
