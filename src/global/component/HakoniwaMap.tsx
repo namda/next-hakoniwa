@@ -126,6 +126,7 @@ type HakoniwaMapProps = {
 
 /* Mapのピクセルサイズ */
 const baseMapPixel = 32;
+const continuousInputStorageKey = 'next-hakoniwa:development:continuous-input';
 
 type MapClickModalProps = {
   x: number;
@@ -305,7 +306,22 @@ const MapClickModal = ({
   const [category, setCategory] = useState<'優先' | '開発' | '建設' | '運営' | '攻撃' | '支援'>(
     restrictToAttackOrAid ? '攻撃' : '優先'
   );
-  const [isContinuous, setIsContinuous] = useState(true);
+  const [isContinuous, setIsContinuous] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem(continuousInputStorageKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(continuousInputStorageKey, String(isContinuous));
+    } catch {
+      // localStorageを利用できない環境では現在のモーダル内の状態だけを使う
+    }
+  }, [isContinuous]);
   const effectiveCategory =
     restrictToAttackOrAid && category !== '攻撃' && category !== '支援' ? '攻撃' : category;
 
