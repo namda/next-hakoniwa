@@ -869,18 +869,22 @@ const startUsage = memoryUsage();
 const startTime = performance.now();
 
 (async () => {
-  await turnProceed();
+  try {
+    await turnProceed();
 
-  const endTime = performance.now();
-  const endUsage = memoryUsage();
+    const endTime = performance.now();
+    const endUsage = memoryUsage();
 
-  turnProceedLogger.info(`ExecuteTime: ${Math.round((endTime - startTime) * 100) / 100} msec`);
-  turnProceedLogger.info(`Memory Usage: ${startUsage.messages} -> ${endUsage.messages}`);
-  const mbDiff = (key: keyof typeof endUsage.values) =>
-    Math.round(((endUsage.values[key] - startUsage.values[key]) / 1024 / 1024) * 100) / 100;
+    turnProceedLogger.info(`ExecuteTime: ${Math.round((endTime - startTime) * 100) / 100} msec`);
+    turnProceedLogger.info(`Memory Usage: ${startUsage.messages} -> ${endUsage.messages}`);
+    const mbDiff = (key: keyof typeof endUsage.values) =>
+      Math.round(((endUsage.values[key] - startUsage.values[key]) / 1024 / 1024) * 100) / 100;
 
-  turnProceedLogger.info(`Heap Total Diff: ${mbDiff('heapTotal')} MB`);
-  turnProceedLogger.info(`Heap Used Diff: ${mbDiff('heapUsed')} MB`);
-  turnProceedLogger.info(`External Diff: ${mbDiff('external')} MB`);
-  turnProceedLogger.info(`Array Buffers Diff: ${mbDiff('arrayBuffers')} MB`);
+    turnProceedLogger.info(`Heap Total Diff: ${mbDiff('heapTotal')} MB`);
+    turnProceedLogger.info(`Heap Used Diff: ${mbDiff('heapUsed')} MB`);
+    turnProceedLogger.info(`External Diff: ${mbDiff('external')} MB`);
+    turnProceedLogger.info(`Array Buffers Diff: ${mbDiff('arrayBuffers')} MB`);
+  } finally {
+    await db.destroy();
+  }
 })();
