@@ -268,6 +268,7 @@ const PlanList = memo(
                 islandOptions={islandOptions}
                 item={itemProps}
                 onUpdate={handleUpdateItem}
+                orderNo={index + 1}
                 turn={turnList[index]}
                 onDelete={handleDeleteItem}
                 isDragged={draggedId === item.id}

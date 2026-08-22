@@ -36,6 +36,7 @@ const PlanItem = memo(
         islandOptions,
         item,
         onUpdate,
+        orderNo,
         turn,
         onDelete,
         isDragged,
@@ -191,11 +192,20 @@ const PlanItem = memo(
                 <RxDragHandleVertical />
               </span>
             </div>
-            <span
-              className={`inline-block self-center font-mono text-shadow-xs/30 ${getPlanItemLayoutClass(isCompact, 'min-w-[3em] text-sm', 'min-w-[2.35em] text-xs leading-none')} ${immediate ? 'text-sky-500' : ''}`}
+            <div
+              className={`flex self-center flex-col justify-center font-mono text-shadow-xs/30 ${getPlanItemLayoutClass(isCompact, 'min-w-[3.5em] leading-tight', 'min-w-[3em] leading-none')}`}
             >
-              {`T${turn}`}
-            </span>
+              <span
+                className={`text-gray-500 ${getPlanItemLayoutClass(isCompact, 'text-[10px]', 'text-[9px]')}`}
+              >
+                {`No.${orderNo}`}
+              </span>
+              <span
+                className={`${getPlanItemLayoutClass(isCompact, 'text-sm', 'text-xs')} ${immediate ? 'text-sky-500' : ''}`}
+              >
+                {`T${turn}`}
+              </span>
+            </div>
           </div>
 
           <button
@@ -280,6 +290,7 @@ const PlanItem = memo(
   ),
   (prev: PlanItemProps, next: PlanItemProps) =>
     isEqual(prev.item, next.item) &&
+    prev.orderNo === next.orderNo &&
     prev.turn === next.turn &&
     prev.isCompact === next.isCompact &&
     prev.isChange === next.isChange &&

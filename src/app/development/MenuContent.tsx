@@ -274,7 +274,9 @@ export const MenuContent = ({
           refreshDevelopData={refreshDevelopData}
         />
       </div>
-      <div className="-ml-[3px] flex h-full min-h-0 items-center">
+      <div
+        className={`-ml-[3px] flex h-full min-h-0 ${isMobile ? 'items-center' : 'items-start'}`}
+      >
         <BaseTabs
           orientation="vertical-right"
           size="sm"

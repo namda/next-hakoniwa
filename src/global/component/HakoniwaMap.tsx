@@ -342,6 +342,11 @@ const MapClickModal = ({
   const twoRowBodyHeightRef = useRef<number | null>(null);
   const planSelectProbeCompleteRef = useRef(false);
 
+  const currentItems = usePlanDataStore((state) => state.items);
+  const setItems = usePlanDataStore((state) => state.setItems);
+  const insertPosition = usePlanDataStore((state) => state.insertPosition);
+  const setInsertPosition = usePlanDataStore((state) => state.setInsertPosition);
+
   const { control, setValue, getValues } = useForm<{
     plan: string;
     times: number;
@@ -350,7 +355,7 @@ const MapClickModal = ({
     defaultValues: {
       plan: '',
       times: 1,
-      position: 1,
+      position: insertPosition,
     },
   });
 
@@ -358,8 +363,23 @@ const MapClickModal = ({
   const times = useWatch({ control, name: 'times' });
   const position = useWatch({ control, name: 'position' });
 
-  const currentItems = usePlanDataStore((state) => state.items);
-  const setItems = usePlanDataStore((state) => state.setItems);
+  const insertionTurn = useMemo(() => {
+    let currentTurn = (turn ?? 0) + 1;
+    const plansBeforeInsertion = currentItems.slice(0, Math.max(0, Number(position) - 1));
+
+    for (const item of plansBeforeInsertion) {
+      const { immediate } = getPlanDefine(item.plan);
+      if (!immediate) currentTurn += Number(item.times);
+    }
+
+    return currentTurn;
+  }, [currentItems, position, turn]);
+
+  const insertionTurnText = `T${insertionTurn}`;
+  const insertionTurnFontSize = Math.min(
+    14,
+    50 / Math.max(1, insertionTurnText.length * 0.62)
+  );
 
   // 予測マップタイプ
   const predictedType = useMemo(() => {
@@ -599,10 +619,14 @@ const MapClickModal = ({
     }));
 
     setItems(reindexed, true);
+
+    const nextPosition = Math.min(Number(position) + 1, reindexed.length + 1);
+    setInsertPosition(nextPosition);
+
     if (!isContinuous) {
       openToggle(false);
     } else {
-      setValue('position', Number(position) + 1);
+      setValue('position', nextPosition);
       setCategory('優先');
     }
   };
@@ -698,7 +722,51 @@ const MapClickModal = ({
     </div>
   );
 
-  const footer = (
+  const footer = isMobile ? (
+    <div className="flex w-full flex-col gap-2">
+      {currentItems.length > 0 && (
+        <div className="flex w-full items-center justify-end gap-2">
+          <span
+            className="inline-flex w-14 shrink-0 items-center justify-center overflow-hidden font-mono font-bold whitespace-nowrap text-gray-700 dark:text-gray-300"
+            style={{ fontSize: `${insertionTurnFontSize}px` }}
+            title={insertionTurnText}
+          >
+            {insertionTurnText}
+          </span>
+          <label className="shrink-0 text-sm whitespace-nowrap" htmlFor={`position`}>
+            挿入先
+          </label>
+          <TextFieldRHF
+            name="position"
+            type="number"
+            className="w-[4.5em] shrink-0"
+            control={control}
+            min={1}
+            max={currentItems.length + 1}
+            isBottomSpace={false}
+          />
+        </div>
+      )}
+      <div className="flex w-full items-center justify-between gap-3">
+        <div className="flex shrink-0 items-center gap-2">
+          <input
+            id="continuous-input"
+            type="checkbox"
+            checked={isContinuous}
+            onChange={(e) => setIsContinuous(e.target.checked)}
+            className="h-4 w-4 cursor-pointer rounded border-gray-300 text-green-600 focus:ring-green-500"
+          />
+          <label
+            htmlFor="continuous-input"
+            className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            連続入力
+          </label>
+        </div>
+        <Button onClick={handleInsertPlan}>計画の挿入</Button>
+      </div>
+    </div>
+  ) : (
     <div className="flex w-full items-center justify-between">
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
@@ -720,6 +788,13 @@ const MapClickModal = ({
       <div className="flex items-center gap-3">
         {currentItems.length > 0 && (
           <>
+            <span
+              className="inline-flex w-14 shrink-0 items-center justify-center overflow-hidden font-mono font-bold whitespace-nowrap text-gray-700 dark:text-gray-300"
+              style={{ fontSize: `${insertionTurnFontSize}px` }}
+              title={insertionTurnText}
+            >
+              {insertionTurnText}
+            </span>
             <label className="text-sm whitespace-nowrap" htmlFor={`position`}>
               挿入先
             </label>

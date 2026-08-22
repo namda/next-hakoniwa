@@ -21,6 +21,7 @@ export type PlanItemProps = {
   islandOptions: Array<{ label: string; value: string }>;
   item: Omit<LocalPlanItem, 'from_uuid'>;
   onUpdate: (id: number, data: Partial<LocalPlanItem>) => void;
+  orderNo: number;
   turn: number;
   onDelete: (id: number) => void;
   isDragged: boolean;

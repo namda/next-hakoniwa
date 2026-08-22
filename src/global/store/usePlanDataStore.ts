@@ -13,10 +13,12 @@ type newPlanDataStoreType = {
   items: Array<Plan & { id: number; edit: boolean }>;
   historyIndex: number;
   isChange: boolean;
+  insertPosition: number;
   setInitData: (initData: Plan[] | undefined, uuid: string | undefined) => void;
   addPlanListData: (planListData: Array<Plan & { id: number; edit: boolean }>) => void;
   setPostData: (postData: Plan[]) => void;
   setItems: (items: Array<Plan & { id: number; edit: boolean }>, saveHistory?: boolean) => void;
+  setInsertPosition: (position: number) => void;
   undo: () => void;
   redo: () => void;
   deleteItem: (id: number) => void;
@@ -41,6 +43,7 @@ export const usePlanDataStore = create<newPlanDataStoreType>((set, get) => ({
   items: [],
   historyIndex: 0,
   isChange: false,
+  insertPosition: 1,
 
   addPlanListData: (data) => {
     if (!data) return;
@@ -81,6 +84,10 @@ export const usePlanDataStore = create<newPlanDataStoreType>((set, get) => ({
     if (saveHistory) {
       get().addPlanListData(items);
     }
+  },
+
+  setInsertPosition: (position) => {
+    set({ insertPosition: Math.max(1, Math.floor(position)) });
   },
 
   undo: () => {
@@ -139,5 +146,6 @@ export const usePlanDataStore = create<newPlanDataStoreType>((set, get) => ({
       items: [],
       historyIndex: 0,
       isChange: false,
+      insertPosition: 1,
     }),
 }));
