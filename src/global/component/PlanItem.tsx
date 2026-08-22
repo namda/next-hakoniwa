@@ -10,7 +10,6 @@ import { IoTrash } from 'react-icons/io5';
 import { RxDragHandleVertical } from 'react-icons/rx';
 import META_DATA from '../define/metadata';
 import { getPlanDefine, getPlanSelect } from '../define/planType';
-import { useWindowSize } from '../function/useWindowSize';
 import { planInfoZod, planInfoZodValid } from '../valid/planInfo';
 import Modal from './Modal';
 import { PlanItemProps } from './PlanList.types';
@@ -20,6 +19,8 @@ import Tooltip from './Tooltip';
 
 const isShowTimes = (times: number, edit: boolean) => times > 1 && !edit;
 const idShowToIsland = (fromUuid?: string, toUuid?: string) => fromUuid && fromUuid !== toUuid;
+const getPlanItemLayoutClass = (isCompact: boolean, compactClass: string, desktopClass: string) =>
+  isCompact ? compactClass : desktopClass;
 
 // -----------------------------------------------------------------------------
 // Component: PlanItem
@@ -29,6 +30,7 @@ const PlanItem = memo(
   forwardRef<HTMLDivElement, PlanItemProps>(
     (
       {
+        isCompact,
         fromUuid,
         isChange,
         islandOptions,
@@ -43,8 +45,6 @@ const PlanItem = memo(
     ) => {
       const { id, x, y, plan, times, edit, to_uuid } = item;
       const { name, description, immediate, otherIsland, minTimes, maxTimes } = getPlanDefine(plan);
-      const { width } = useWindowSize();
-      const isMobile = width < 768; // md breakpoint
 
       const { control, subscribe, reset, setValue } = useForm<Omit<planInfoZod, 'from_uuid'>>({
         defaultValues: item,
@@ -76,14 +76,14 @@ const PlanItem = memo(
       const toggleEdit = () => setValue('edit', !edit);
 
       const renderEditForm = (isModal: boolean) => (
-        <div
-          className={`grid w-full grid-cols-1 gap-2 p-1 ${isModal ? '' : 'md:grid-cols-2 md:gap-4'}`}
-        >
+        <div className={`grid w-full grid-cols-1 gap-2 p-1 ${isModal ? '' : 'grid-cols-2 gap-4'}`}>
           <div className="flex items-center gap-2">
             <Tooltip
               position="bottom"
               tooltipComp={
-                <p className="max-w-sm min-w-64 text-left text-sm whitespace-pre-wrap md:text-base">
+                <p
+                  className={`max-w-sm min-w-64 text-left whitespace-pre-wrap ${getPlanItemLayoutClass(isCompact, 'text-sm', 'text-sm')}`}
+                >
                   {description}
                 </p>
               }
@@ -100,7 +100,7 @@ const PlanItem = memo(
           </div>
           <div className="flex items-center gap-2">
             <label
-              className="text-sm font-bold whitespace-nowrap md:text-base"
+              className={`font-bold whitespace-nowrap ${getPlanItemLayoutClass(isCompact, 'text-sm', 'text-sm')}`}
               htmlFor={`to_uuid-${item.id}`}
             >
               目標島
@@ -117,7 +117,7 @@ const PlanItem = memo(
           </div>
           <div className="flex items-center gap-3 xl:gap-2">
             <label
-              className="text-sm font-bold whitespace-nowrap md:text-base"
+              className={`font-bold whitespace-nowrap ${getPlanItemLayoutClass(isCompact, 'text-sm', 'text-sm')}`}
               htmlFor={`x-${item.id}`}
             >
               X座標
@@ -135,7 +135,7 @@ const PlanItem = memo(
           </div>
           <div className="flex items-center gap-3 xl:gap-2">
             <label
-              className="text-sm font-bold whitespace-nowrap md:text-base"
+              className={`font-bold whitespace-nowrap ${getPlanItemLayoutClass(isCompact, 'text-sm', 'text-sm')}`}
               htmlFor={`y-${item.id}`}
             >
               Y座標
@@ -151,9 +151,11 @@ const PlanItem = memo(
               />
             </div>
           </div>
-          <div className="flex max-w-md items-center gap-2 md:col-span-2">
+          <div
+            className={`flex max-w-md items-center gap-2 ${getPlanItemLayoutClass(isCompact, '', 'col-span-2')}`}
+          >
             <label
-              className="text-sm font-bold whitespace-nowrap md:text-base"
+              className={`font-bold whitespace-nowrap ${getPlanItemLayoutClass(isCompact, 'text-sm', 'text-sm')}`}
               htmlFor={`times-${item.id}`}
             >
               計画数
@@ -176,7 +178,7 @@ const PlanItem = memo(
       return (
         <div
           ref={itemRef}
-          className={`card-border mb-0.5 flex items-stretch gap-y-1 md:gap-y-0 ${isChange ? 'bg-orange-50' : 'bg-teal-50'} ${isDragged ? 'opacity-50' : ''}`}
+          className={`card-border mb-0.5 flex items-stretch ${getPlanItemLayoutClass(isCompact, 'gap-y-1', 'gap-y-0')} ${isChange ? 'bg-orange-50' : 'bg-teal-50'} ${isDragged ? 'opacity-50' : ''}`}
         >
           {/* ドラッグハンドル: pointerdown のみを受け付ける */}
           <div
@@ -190,7 +192,7 @@ const PlanItem = memo(
               </span>
             </div>
             <span
-              className={`inline-block min-w-[3em] self-center font-mono text-sm text-shadow-xs/30 md:min-w-[2.75em] md:text-sm md:leading-none ${immediate ? 'text-sky-500' : ''}`}
+              className={`inline-block self-center font-mono text-shadow-xs/30 ${getPlanItemLayoutClass(isCompact, 'min-w-[3em] text-sm', 'min-w-[2.35em] text-xs leading-none')} ${immediate ? 'text-sky-500' : ''}`}
             >
               {`T${turn}`}
             </span>
@@ -198,45 +200,55 @@ const PlanItem = memo(
 
           <button
             onClick={toggleEdit}
-            className={`mx-2 bg-sky-700 px-1.5 text-white hover:cursor-pointer hover:bg-sky-600 md:mx-1 md:px-1`}
+            className={`bg-sky-700 text-white hover:cursor-pointer hover:bg-sky-600 ${getPlanItemLayoutClass(isCompact, 'mx-2 px-1.5', 'mx-0.5 px-0.5')}`}
           >
-            <p className="text-center text-sm font-semibold [writing-mode:vertical-rl] md:text-xs md:leading-none">
+            <p
+              className={`text-center font-semibold [writing-mode:vertical-rl] ${getPlanItemLayoutClass(isCompact, 'text-sm', 'text-[10px] leading-none')}`}
+            >
               {edit ? 'Close' : 'Edit'}
             </p>
           </button>
 
           <div>
-            {edit && !isMobile ? (
+            {edit && !isCompact ? (
               renderEditForm(false)
             ) : (
               <Tooltip
                 position="bottom"
                 tooltipComp={
-                  <p className="max-w-sm min-w-64 text-left text-sm whitespace-pre-wrap md:text-base">
+                  <p
+                    className={`max-w-sm min-w-64 text-left whitespace-pre-wrap ${getPlanItemLayoutClass(isCompact, 'text-sm', 'text-sm')}`}
+                  >
                     {description}
                   </p>
                 }
               >
-                <div className="grid grid-cols-[auto] grid-rows-[auto_auto] items-center md:grid-cols-[auto_auto] md:grid-rows-1 md:gap-2">
+                <div
+                  className={`grid items-center ${getPlanItemLayoutClass(isCompact, 'grid-cols-[auto] grid-rows-[auto_auto]', 'grid-cols-[auto_auto] grid-rows-1 gap-1')}`}
+                >
                   <div>
                     {!edit && (
                       <div
-                        className={`font-mono text-sm font-extrabold text-shadow-md md:text-sm md:leading-tight`}
+                        className={`font-mono font-extrabold text-shadow-md ${getPlanItemLayoutClass(isCompact, 'text-sm', 'text-xs leading-none')}`}
                       >{`(${x},${y})`}</div>
                     )}
                     <div
-                      className={`ml-2 flex items-center gap-1.5 text-sm font-medium text-shadow-xs/30 md:ml-1 md:gap-1 md:text-base md:leading-tight ${immediate ? 'text-sky-500' : 'text-amber-500'}`}
+                      className={`flex items-center font-medium text-shadow-xs/30 ${getPlanItemLayoutClass(isCompact, 'ml-2 gap-1.5 text-sm', 'ml-0.5 gap-1 text-sm leading-none')} ${immediate ? 'text-sky-500' : 'text-amber-500'}`}
                     >
                       {name}
                       {isShowTimes(times, edit) && (
-                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-rose-600 px-2 py-0.5 font-mono text-xs font-bold text-white shadow-sm md:px-1.5 md:py-0 md:text-xs">
+                        <span
+                          className={`inline-flex shrink-0 items-center gap-0.5 rounded-full bg-rose-600 font-mono text-xs font-bold text-white shadow-sm ${getPlanItemLayoutClass(isCompact, 'px-2 py-0.5', 'px-1 py-0 text-[10px]')}`}
+                        >
                           ×{times}
                         </span>
                       )}
                     </div>
                   </div>
                   {idShowToIsland(fromUuid, to_uuid) && (
-                    <div className="mt-1 mb-2 ml-2 shrink-0 truncate rounded-full bg-teal-700 px-2 py-0.5 text-center font-mono text-xs font-bold text-white shadow-sm md:m-0 md:px-1.5 md:py-0 md:text-xs">
+                    <div
+                      className={`shrink-0 truncate rounded-full bg-teal-700 text-center font-mono text-xs font-bold text-white shadow-sm ${getPlanItemLayoutClass(isCompact, 'mt-1 mb-2 ml-2 px-2 py-0.5', 'm-0 px-1 py-0 text-[10px]')}`}
+                    >
                       {`目標:${islandOptions.find((opt) => opt.value === to_uuid)?.label ?? 'Unknown'}`}
                     </div>
                   )}
@@ -245,7 +257,7 @@ const PlanItem = memo(
             )}
           </div>
 
-          {isMobile && edit && (
+          {isCompact && edit && (
             <Modal
               open={edit}
               openToggle={toggleEdit}
@@ -257,10 +269,10 @@ const PlanItem = memo(
 
           <button
             onClick={() => onDelete(id)}
-            className="ml-auto p-2 text-gray-400 transition-colors hover:cursor-pointer hover:text-red-600 focus:outline-none md:p-1"
+            className={`ml-auto text-gray-400 transition-colors hover:cursor-pointer hover:text-red-600 focus:outline-none ${getPlanItemLayoutClass(isCompact, 'p-2', 'p-0.5')}`}
             aria-label="Delete plan"
           >
-            <IoTrash className="text-xl md:text-base" />
+            <IoTrash className={getPlanItemLayoutClass(isCompact, 'text-xl', 'text-sm')} />
           </button>
         </div>
       );
@@ -269,6 +281,7 @@ const PlanItem = memo(
   (prev: PlanItemProps, next: PlanItemProps) =>
     isEqual(prev.item, next.item) &&
     prev.turn === next.turn &&
+    prev.isCompact === next.isCompact &&
     prev.isChange === next.isChange &&
     prev.isDragged === next.isDragged &&
     isEqual(prev.islandOptions, next.islandOptions)

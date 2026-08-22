@@ -54,6 +54,7 @@ const PlanList = memo(
     ref,
     className,
     style,
+    isCompact = false,
     islandList,
     isPlanLoading,
     turn = 0,
@@ -208,7 +209,11 @@ const PlanList = memo(
 
     return (
       <>
-        <div className="grid grid-cols-2 px-4 pb-1">
+        <div
+          className={
+            isCompact ? 'grid grid-cols-2 px-4 pb-1' : 'grid grid-cols-2 px-1 pb-0.5 text-sm'
+          }
+        >
           <div>
             <Button
               type="submit"
@@ -226,7 +231,7 @@ const PlanList = memo(
               計画送信
             </Button>
           </div>
-          <div className="flex items-center justify-end gap-5">
+          <div className={`flex items-center justify-end ${isCompact ? 'gap-5' : 'gap-2'}`}>
             <button
               type="button"
               className="inline-flex cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-gray-100 active:bg-gray-200 disabled:cursor-not-allowed disabled:text-gray-300"
@@ -234,7 +239,7 @@ const PlanList = memo(
               aria-label="Undo"
               onClick={handleUndo}
             >
-              <IoArrowUndo className="text-xl" />
+              <IoArrowUndo className={isCompact ? 'text-xl' : 'text-base'} />
               戻る
             </button>
             <button
@@ -244,7 +249,7 @@ const PlanList = memo(
               aria-label="Redo"
               onClick={handleRedo}
             >
-              <IoArrowRedo className="text-xl" />
+              <IoArrowRedo className={isCompact ? 'text-xl' : 'text-base'} />
               進む
             </button>
           </div>
@@ -257,6 +262,7 @@ const PlanList = memo(
               <PlanItem
                 key={`item-${item.id}`}
                 ref={(el) => setItemRowRef(item.id, el)}
+                isCompact={isCompact}
                 fromUuid={uuid}
                 isChange={isChange}
                 islandOptions={islandOptions}

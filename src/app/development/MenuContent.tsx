@@ -41,39 +41,70 @@ const activityMode = (view: ViewMode, target: ViewMode): 'visible' | 'hidden' =>
 const getIslandSettingsPanelKey = (developData?: Props['developData']) =>
   `${developData?.island_name_prefix ?? ''}:${developData?.island_name ?? ''}:${developData?.current_title_type ?? ''}`;
 
-function MenuHeader({ developData, view }: { developData?: Props['developData']; view: ViewMode }) {
+function MenuHeader({
+  developData,
+  view,
+  isMobile,
+}: {
+  developData?: Props['developData'];
+  view: ViewMode;
+  isMobile: boolean;
+}) {
   const islandName = `${developData?.island_name_prefix ?? ''}${developData?.island_name ?? ''}`;
   const titleText = developData?.current_title_name?.trim() ?? '';
 
-  return (
-    <div className="text-bold mt-2 px-2 text-center text-red-900 md:mt-1">
-      <div className="flex flex-col items-center justify-center md:flex-row md:flex-wrap md:items-baseline md:gap-x-3 md:gap-y-0.5">
-        <div className="max-w-full text-xl leading-tight break-words whitespace-normal lg:text-2xl xl:text-3xl">
-          {`「${islandName}島」`}
-        </div>
-        <span className="text-lg break-words whitespace-normal text-black lg:text-xl xl:text-2xl">
-          {VIEW_LABEL[view]}
-        </span>
-        {titleText !== '' ? (
-          <div className="text-lg break-words whitespace-normal text-cyan-800 lg:text-xl xl:text-2xl">
-            {`[${titleText}]`}
+  if (isMobile) {
+    return (
+      <div className="text-bold mt-2 px-2 text-center text-red-900">
+        <div className="flex flex-col items-center justify-center">
+          <div className="max-w-full text-xl leading-tight break-words whitespace-normal">
+            {`「${islandName}島」`}
           </div>
-        ) : null}
-        <div className="text-base whitespace-normal text-black">
-          {'ミサイル保有数: '}
-          <span className="whitespace-nowrap">
-            <span className="font-mono text-lg font-bold text-red-900">{developData?.missile}</span>
-            {'発'}
+          <span className="text-lg break-words whitespace-normal text-black">
+            {VIEW_LABEL[view]}
           </span>
+          {titleText !== '' ? (
+            <div className="text-lg break-words whitespace-normal text-cyan-800">
+              {`[${titleText}]`}
+            </div>
+          ) : null}
+          <div className="text-base whitespace-normal text-black">
+            {'ミサイル保有数: '}
+            <span className="whitespace-nowrap">
+              <span className="font-mono text-lg font-bold text-red-900">
+                {developData?.missile}
+              </span>
+              {'発'}
+            </span>
+          </div>
+        </div>
+        <hr className="my-2 border-gray-200" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-1 pt-1 text-center text-red-900">
+      <div className="flex min-w-0 items-baseline justify-center gap-x-2 overflow-hidden whitespace-nowrap">
+        <div className="min-w-0 truncate text-base leading-tight font-bold">{`「${islandName}島」`}</div>
+        <span className="shrink-0 text-sm text-black">{VIEW_LABEL[view]}</span>
+        {titleText !== '' ? (
+          <div className="min-w-0 truncate text-sm text-cyan-800">{`[${titleText}]`}</div>
+        ) : null}
+        <div className="shrink-0 text-xs text-black">
+          {'M:'}
+          <span className="font-mono font-bold text-red-900">{developData?.missile}</span>
+          {'発'}
         </div>
       </div>
-      <hr className="my-2 border-gray-200 md:my-1" />
+      <hr className="my-0.5 border-gray-200" />
     </div>
   );
 }
 
 function MenuPanels({
   view,
+  isMobile,
   islandList,
   turnData,
   isPlanLoading,
@@ -87,6 +118,7 @@ function MenuPanels({
   refreshDevelopData,
 }: {
   view: ViewMode;
+  isMobile: boolean;
   islandList?: Props['islandList'];
   turnData?: Props['turnData'];
   isPlanLoading: boolean;
@@ -103,7 +135,8 @@ function MenuPanels({
     <div className={'flex flex-1 flex-col overflow-hidden'}>
       <Activity mode={activityMode(view, 'plan')}>
         <PlanList
-          className="flex-1 overflow-y-auto p-2 md:p-1"
+          isCompact={isMobile}
+          className={isMobile ? 'flex-1 overflow-y-auto p-2' : 'flex-1 overflow-y-auto p-0.5'}
           islandList={islandList}
           turn={turnData?.turn}
           isPlanLoading={isPlanLoading}
@@ -224,9 +257,10 @@ export const MenuContent = ({
         className="double flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border-3 border-gray-200 bg-teal-50/50"
         style={{ height: listHeight }}
       >
-        <MenuHeader developData={developData} view={view} />
+        <MenuHeader developData={developData} view={view} isMobile={isMobile} />
         <MenuPanels
           view={view}
+          isMobile={isMobile}
           islandList={islandList}
           turnData={turnData}
           isPlanLoading={isPlanLoading}

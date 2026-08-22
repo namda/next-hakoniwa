@@ -1,4 +1,4 @@
-# Next.js Hakoniwa
+# [Next.js Hakoniwa](https://hs.ddu.jp)
 
 [Next.js](https://nextjs.org) で実装された箱庭諸島のWebアプリケーションです。
 
