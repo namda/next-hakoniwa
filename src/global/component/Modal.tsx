@@ -3,7 +3,7 @@
  * @description Portalベースのモーダルダイアログコンポーネント。
  */
 import { isEqual } from '@/global/function/collection';
-import { memo, ReactNode, useEffect, useState } from 'react';
+import { memo, ReactNode, Ref, useEffect, useState } from 'react';
 import { RxCross1 } from 'react-icons/rx';
 import { createPortalIdHook } from '../function/createPortalIdHook';
 import IfComponent from './IfComponent';
@@ -44,19 +44,33 @@ const HeaderModal = memo(
 );
 
 const BodyModal = memo(
-  function BodyModal({ body }: { body: ReactNode }) {
-    return <div className="min-w-0 px-2 py-4 break-words md:px-4">{body}</div>;
+  function BodyModal({ body, bodyRef }: { body: ReactNode; bodyRef?: Ref<HTMLDivElement> }) {
+    return (
+      <div ref={bodyRef} className="min-w-0 px-2 py-4 break-words md:px-4">
+        {body}
+      </div>
+    );
   },
   (oldProps, newProps) => isEqual(oldProps, newProps)
 );
 
 const FooterModal = memo(
-  function FooterModal({ footer }: { footer?: ReactNode }) {
+  function FooterModal({
+    footer,
+    stickyToViewport = false,
+  }: {
+    footer?: ReactNode;
+    stickyToViewport?: boolean;
+  }) {
     if (footer === undefined) {
       return <></>;
     } else {
       return (
-        <div className="flex items-center rounded-b border-t border-gray-200 p-2 md:p-4">
+        <div
+          className={`flex items-center rounded-b border-t border-gray-200 p-2 md:p-4 ${
+            stickyToViewport ? 'sticky bottom-0 z-10 bg-white dark:bg-gray-800' : ''
+          }`}
+        >
           {footer}
         </div>
       );
@@ -74,7 +88,9 @@ const ModalContent = memo(
     header,
     openToggle,
     body,
+    bodyRef,
     footer,
+    stickyFooter,
     className,
     bottomOnMobile,
   }: {
@@ -85,7 +101,9 @@ const ModalContent = memo(
     header?: string | ReactNode;
     openToggle: ((value: boolean) => void) | (() => void);
     body: ReactNode;
+    bodyRef?: Ref<HTMLDivElement>;
     footer?: ReactNode;
+    stickyFooter?: boolean;
     className?: string;
     /** スマホでモーダルを画面下部に表示するか */
     bottomOnMobile?: boolean;
@@ -99,14 +117,14 @@ const ModalContent = memo(
           role="dialog"
           tabIndex={-1}
           onKeyDown={modalFunction}
-          className={`card-border pointer-events-auto flex ${portal ? 'max-h-[96%] max-w-[96%] md:max-h-screen md:max-w-screen' : 'max-h-[95%] max-w-[95%]'} min-w-0 flex-col overflow-hidden rounded-lg bg-white shadow-sm transition-all duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800 ${open ? 'scale-100 opacity-100' : 'scale-95 opacity-0'} ${className} ${bottomOnMobile ? 'max-sm:mb-2' : ''}`}
+          className={`card-border pointer-events-auto flex ${portal ? 'max-h-[96%] max-w-[96%] md:max-h-screen md:max-w-screen' : 'max-h-[95%] max-w-[95%]'} min-w-0 flex-col ${stickyFooter ? 'overflow-visible' : 'overflow-hidden'} rounded-lg bg-white shadow-sm transition-all duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800 ${open ? 'scale-100 opacity-100' : 'scale-95 opacity-0'} ${className} ${bottomOnMobile ? 'max-sm:mb-2' : ''}`}
         >
           <IfComponent isRendered={isContentRendered}>
             <HeaderModal header={header} openToggle={openToggle} />
             <div className="min-w-0 flex-1 overflow-x-auto overflow-y-auto">
-              <BodyModal body={body} />
+              <BodyModal body={body} bodyRef={bodyRef} />
             </div>
-            <FooterModal footer={footer} />
+            <FooterModal footer={footer} stickyToViewport={stickyFooter} />
           </IfComponent>
         </div>
       </div>
@@ -119,7 +137,9 @@ export default memo(
   function Modal({
     header,
     body,
+    bodyRef,
     footer,
+    stickyFooter = false,
     hidden = false,
     preRender = false,
     portal = true,
@@ -130,6 +150,8 @@ export default memo(
   }: {
     header?: string | ReactNode;
     body: ReactNode;
+    bodyRef?: Ref<HTMLDivElement>;
+    stickyFooter?: boolean;
     hidden?: boolean;
     preRender?: boolean;
     portal?: boolean;
@@ -197,7 +219,9 @@ export default memo(
         header={header}
         openToggle={openToggle}
         body={body}
+        bodyRef={bodyRef}
         footer={footer}
+        stickyFooter={stickyFooter}
         className={className}
         bottomOnMobile={bottomOnMobile}
       />
