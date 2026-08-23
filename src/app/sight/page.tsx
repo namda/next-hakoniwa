@@ -34,6 +34,8 @@ export default async function Page({ searchParams }: PageProps<'/sight'>) {
           'island.farm',
           'island.factory',
           'island.mining',
+          'island.labor_factory',
+          'island.labor_mining',
           'island.missile',
           'user.island_name_prefix',
           'user.island_name',

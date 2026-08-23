@@ -14,9 +14,20 @@ const facilityUnit = '人規模';
 export const factory: mapType = {
   type: 'factory',
   baseLand: 'plains',
-  name: '工場',
+  name: '先進工場',
   imgPath: '/img/facility/factory.gif',
   defVal: 1,
+  maxVal: 10,
+  coefficient: 10000,
+  unit: facilityUnit,
+};
+export const laborFactory: mapType = {
+  type: 'labor_factory',
+  baseLand: 'plains',
+  name: '工場',
+  // 専用アイコン追加までは既存画像を仮使用する
+  imgPath: '/img/facility/factory.gif',
+  defVal: 3,
   maxVal: 10,
   coefficient: 10000,
   unit: facilityUnit,
@@ -34,7 +45,18 @@ export const farm: mapType = {
 export const mining: mapType = {
   type: 'mining',
   baseLand: 'mountain',
+  name: '無人化採掘場',
+  imgPath: '/img/facility/mining.gif',
+  defVal: 1,
+  maxVal: 40,
+  coefficient: 5000,
+  unit: facilityUnit,
+};
+export const laborMining: mapType = {
+  type: 'labor_mining',
+  baseLand: 'mountain',
   name: '採掘場',
+  // 専用アイコン追加までは既存画像を仮使用する
   imgPath: '/img/facility/mining.gif',
   defVal: 1,
   maxVal: 40,

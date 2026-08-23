@@ -1332,6 +1332,7 @@ export const logMissileBoatPeople = (
  * @param diffFood 食料の変動量
  * @param popSign 人口の増減符号
  * @param diffPopulation 人口の変動量
+ * @param current ターン終了時点の現在量
  * @returns ターン処理結果のログ
  */
 export const logTurnResult = (
@@ -1340,9 +1341,10 @@ export const logTurnResult = (
   foodSign: string,
   diffFood: number,
   popSign: string,
-  diffPopulation: number
+  diffPopulation: number,
+  current: Pick<Island, 'money' | 'food' | 'population'>
 ): string => {
-  return `[b](収支)[/b]人口: ${popSign}${diffPopulation}人、資金: ${moneySign}${diffMoney}${META_DATA.UNIT_MONEY}、食料: ${foodSign}${diffFood}${META_DATA.UNIT_FOOD}`;
+  return `[b](収支)[/b]人口: ${popSign}${diffPopulation}人（現在 ${current.population}人）、資金: ${moneySign}${diffMoney}${META_DATA.UNIT_MONEY}（現在 ${current.money}${META_DATA.UNIT_MONEY}）、食料: ${foodSign}${diffFood}${META_DATA.UNIT_FOOD}（現在 ${current.food}${META_DATA.UNIT_FOOD}）`;
 };
 
 /**
