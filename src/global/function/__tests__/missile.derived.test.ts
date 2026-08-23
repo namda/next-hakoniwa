@@ -1,4 +1,5 @@
 import type { islandInfo, islandInfoTurnProgress } from '@/db/kysely';
+import META_DATA from '@/global/define/metadata';
 import {
   ldMissile,
   nuclearMissile,
@@ -6,7 +7,6 @@ import {
   stMissile,
   upliftMissile,
 } from '@/global/define/planCategory/planAtack';
-import META_DATA from '@/global/define/metadata';
 import type { planType } from '@/global/define/planType';
 import { getMapAround, mapArrayConverter } from '@/global/function/island';
 import * as utility from '@/global/function/utility';
@@ -93,6 +93,7 @@ describe('派生ミサイル', () => {
     ['submarine_missile', 'shallows'],
     ['shallows', 'ruins'],
     ['plains', 'mountain'],
+    ['kujira', 'mountain'],
   ])('地形隆起弾は%sを%sへ変える', (before, after) => {
     const island = createIsland('to');
     setCell(island, 5, 5, before);
@@ -105,7 +106,7 @@ describe('派生ミサイル', () => {
   test('核ミサイルは着弾点から2HEXの陸地・山・怪獣を荒地化し、海系を残す', () => {
     const island = createIsland('to', 'plains');
     setCell(island, 5, 5, 'mountain');
-    setCell(island, 6, 5, 'sanjira', 3);
+    setCell(island, 6, 5, 'kujira', 3);
     setCell(island, 4, 5, 'sea');
     setCell(island, 5, 4, 'shallows');
     setCell(island, 7, 5, 'submarine_missile');

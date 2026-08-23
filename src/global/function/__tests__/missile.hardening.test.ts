@@ -117,12 +117,12 @@ const setMissileBase = (island: islandInfoTurnProgress, x: number, y: number) =>
   } as islandInfo;
 };
 
-describe('executeMissile land destruction hardening', () => {
+describe('executeMissile land destruction monster destruction', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  test('サンジラは奇数ターンで硬化し、陸地破壊弾でもダメージを受けない', () => {
+  test('陸地破壊弾は硬化中のサンジラも体力に関係なく倒す', () => {
     const fromIsland = createIsland({
       uuid: 'from-uuid',
       islandName: 'From',
@@ -155,9 +155,9 @@ describe('executeMissile land destruction hardening', () => {
 
     const shallowsCount = toIsland.island_info.filter((cell) => cell.type === 'shallows').length;
 
-    expect(result.monsterKills).toBe(0);
-    expect(shallowsCount).toBe(0);
-    expect(result.logs[0].log).toContain('外殻で弾かれました');
+    expect(result.monsterKills).toBe(1);
+    expect(shallowsCount).toBeGreaterThanOrEqual(1);
+    expect(result.logs[0].log).not.toContain('外殻で弾かれました');
   });
 
   test('サンジラは偶数ターンでは硬化せず、陸地破壊弾で倒される', () => {

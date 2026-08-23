@@ -591,27 +591,6 @@ const applyUpliftMissile = ({
   const baseLog = getBaseLog(turn, fromIsland, toIsland);
   const impactBaseLand = getMapDefine(impactMapInfo.type).baseLand;
   const isMonster = ['monster', 'sanjira', 'kujira'].includes(impactBaseLand);
-  if (isMonster && isMonsterHardened(impactMapInfo.type, turn)) {
-    const log = logMissileMonNoDamage(
-      fromIsland,
-      toIsland,
-      planName,
-      targetX,
-      targetY,
-      impactPoint.x,
-      impactPoint.y,
-      impactMapInfo
-    );
-    return {
-      logs: [{ ...baseLog, secret_log: log, log }],
-      refugees: 0,
-      monsterKills: 0,
-      cityKills: 0,
-      destroyedMaps: {},
-      killedMonsters: {},
-    };
-  }
-
   const seaTypes = ['sea', 'submarine_missile', 'oil_field'];
   const nextType = seaTypes.includes(impactMapInfo.type)
     ? 'shallows'
@@ -692,20 +671,6 @@ const applyNuclearMissile = ({
     if (['sea', 'shallows', 'submarine_missile', 'oil_field'].includes(mapInfo.type)) continue;
     const baseLand = getMapDefine(mapInfo.type).baseLand;
     const isMonster = ['monster', 'sanjira', 'kujira'].includes(baseLand);
-    if (isMonster && isMonsterHardened(mapInfo.type, turn)) {
-      const log = logMissileMonNoDamage(
-        fromIsland,
-        toIsland,
-        planName,
-        targetX,
-        targetY,
-        point.x,
-        point.y,
-        mapInfo
-      );
-      logs.push({ ...baseLog, secret_log: log, log });
-      continue;
-    }
     if (isMonster) {
       monsterKills++;
       addBreakdown(killedMonsters, mapInfo.type);
@@ -820,34 +785,21 @@ const applyLandDestructionMissile = ({
     );
     changeMapData(toIsland, impactPoint.x, impactPoint.y, 'shallows', { type: 'ins', value: 0 });
   } else if (['monster', 'sanjira', 'kujira'].includes(impactBaseLand)) {
-    if (isMonsterHardened(impactMapInfo.type, turn)) {
-      log = logMissileMonNoDamage(
-        fromIsland,
-        toIsland,
-        planName,
-        targetX,
-        targetY,
-        impactPoint.x,
-        impactPoint.y,
-        impactMapInfo
-      );
-    } else {
-      log = logMissileLDMonster(
-        fromIsland,
-        toIsland,
-        planName,
-        targetX,
-        targetY,
-        impactPoint.x,
-        impactPoint.y,
-        impactMapInfo
-      );
-      changeMapData(toIsland, impactPoint.x, impactPoint.y, 'shallows', {
-        type: 'ins',
-        value: 0,
-      });
-      monsterKills = 1;
-    }
+    log = logMissileLDMonster(
+      fromIsland,
+      toIsland,
+      planName,
+      targetX,
+      targetY,
+      impactPoint.x,
+      impactPoint.y,
+      impactMapInfo
+    );
+    changeMapData(toIsland, impactPoint.x, impactPoint.y, 'shallows', {
+      type: 'ins',
+      value: 0,
+    });
+    monsterKills = 1;
   } else if (impactMapInfo.type === 'shallows') {
     log = logMissileLDSea1(
       fromIsland,
@@ -1038,7 +990,7 @@ const handleMonsterImpact = (
   logs: TurnLog[],
   base: { x: number; y: number }
 ): { monsterKills: number; killedMonsterType?: string } => {
-  // サンジラは奇数ターン、クジラは偶数ターンに硬化状態となり、あらゆるミサイルのダメージを無効化する
+  // 通常弾頭ではサンジラは奇数ターン、クジラは偶数ターンに硬化状態となる
   const isHardened = isMonsterHardened(impactMapInfo.type, turn);
 
   if (isHardened) {
