@@ -60,11 +60,9 @@ export const people: mapType = {
         changeMapData(island, x, y, 'people', { type: 'ins', value: clampedValue });
       }
     }
-    // 町以上なら火事判定
-    if (mapInfo.landValue > (this.level?.[1] ?? Number.MAX_SAFE_INTEGER)) {
-      const log = fireDisaster(x, y, turn, island, island);
-      return log !== undefined ? [log] : undefined;
-    }
+    // 人口を持つ各都市HEX自身について火災判定する
+    const log = fireDisaster(x, y, turn, island, island);
+    return log !== undefined ? [log] : undefined;
   },
 };
 

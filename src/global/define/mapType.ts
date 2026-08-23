@@ -224,15 +224,34 @@ export function fireDisaster(
   fromIsland: islandInfoTurnProgress,
   eventRate: EventRate
 ): TurnLog | undefined {
-  if (checkProbability(eventRate.fire)) {
+  const mapInfo = fromIsland.island_info[mapArrayConverter(x, y)];
+  const populationUnit = getMapDefine(mapInfo.type).coefficient ?? 1;
+  const currentPopulation = mapInfo.landValue * populationUnit;
+  const fireRate = (eventRate.fire * currentPopulation * 100) / META_DATA.FIRE.POPULATION_DIVISOR;
+  if (checkProbability(fireRate)) {
     const forestNum = countMapAround(fromIsland.island_info, 'forest', x, y, 1);
     const monumentNum = countMapAround(fromIsland.island_info, 'monument', x, y, 1);
     const baseLog = getBaseLog(turn, fromIsland);
     if (forestNum === 0 && monumentNum === 0) {
-      // 火事のログを作成
-      const log = logFire(fromIsland, x, y);
-      // 火災で焼失
-      changeMapData(fromIsland, x, y, 'wasteland', { type: 'ins', value: 0 });
+      const totalWeight = META_DATA.FIRE.SCALES.reduce((sum, scale) => sum + scale.weight, 0);
+      const roll = randomIntInRange(1, totalWeight);
+      let cumulativeWeight = 0;
+      const scale =
+        META_DATA.FIRE.SCALES.find((candidate) => {
+          cumulativeWeight += candidate.weight;
+          return roll <= cumulativeWeight;
+        }) ?? META_DATA.FIRE.SCALES.at(-1)!;
+      const damagedPopulation = Math.floor((currentPopulation * scale.damageRate) / 100);
+      const remainingPopulation = currentPopulation - damagedPopulation;
+      const log = logFire(fromIsland, x, y, scale.name, currentPopulation, remainingPopulation);
+      if (remainingPopulation <= 0) {
+        changeMapData(fromIsland, x, y, 'wasteland', { type: 'ins', value: 0 });
+      } else {
+        changeMapData(fromIsland, x, y, 'people', {
+          type: 'ins',
+          value: remainingPopulation / populationUnit,
+        });
+      }
       return {
         ...baseLog,
         log: log,

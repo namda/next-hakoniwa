@@ -68,8 +68,29 @@ const META_DATA = Object.freeze({
   HUGE_METEORITE_RATE: Number(process.env.NEXT_PUBLIC_HUGE_METEORITE_RATE!),
   /** 噴火の確率 (%) */
   ERUPTION_RATE: Number(process.env.NEXT_PUBLIC_ERUPTION_RATE!),
-  /** 火災の確率 (%) */
+  /** 火災発生率の倍率 */
   FIRE_RATE: Number(process.env.NEXT_PUBLIC_FIRE_RATE!),
+  /** 火災設定 */
+  FIRE: {
+    POPULATION_DIVISOR: Number(process.env.NEXT_PUBLIC_FIRE_POPULATION_DIVISOR!),
+    SCALES: [
+      {
+        name: '小規模火災',
+        weight: Number(process.env.NEXT_PUBLIC_FIRE_SMALL_WEIGHT!),
+        damageRate: Number(process.env.NEXT_PUBLIC_FIRE_SMALL_DAMAGE_RATE!),
+      },
+      {
+        name: '大規模火災',
+        weight: Number(process.env.NEXT_PUBLIC_FIRE_LARGE_WEIGHT!),
+        damageRate: Number(process.env.NEXT_PUBLIC_FIRE_LARGE_DAMAGE_RATE!),
+      },
+      {
+        name: '壊滅的火災',
+        weight: Number(process.env.NEXT_PUBLIC_FIRE_CATASTROPHIC_WEIGHT!),
+        damageRate: Number(process.env.NEXT_PUBLIC_FIRE_CATASTROPHIC_DAMAGE_RATE!),
+      },
+    ],
+  },
   /** 地盤沈下の確率 */
   FALL_DOWN_RATE: Number(process.env.NEXT_PUBLIC_FALL_DOWN_RATE!),
   /** 地盤沈下のボーダー (万坪) */
@@ -84,8 +105,16 @@ const META_DATA = Object.freeze({
   OIL_EARN: Number(process.env.NEXT_PUBLIC_OIL_EARN!),
   /** 平地に村が出現する確率 (%) */
   VILLAGE_APPEARANCE_RATE: Number(process.env.NEXT_PUBLIC_VILLAGE_APPEARANCE_RATE!),
-  /** 面積あたりの怪獣出現率 ( % / 100万坪 ) */
+  /** 怪獣出現率 (% / turn) */
+  MONSTER_SPAWN_RATE: {
+    BELOW_1M: Number(process.env.NEXT_PUBLIC_MONSTER_SPAWN_RATE_BELOW_1M!),
+  },
+  /** 100万人以上の面積基本出現率 (% / 100万坪 / turn) */
   MONSTER_RATE: Number(process.env.NEXT_PUBLIC_MONSTER_RATE!),
+  /** 100万人以上の追加人口100万人あたりの倍率係数 */
+  MONSTER_POPULATION_MULTIPLIER_PER_EXTRA_1M: Number(
+    process.env.NEXT_PUBLIC_MONSTER_POPULATION_MULTIPLIER_PER_EXTRA_1M!
+  ),
   /** ターンあたりの最大人口増加量 ( 百人 / Turn ) */
   PEOPLE_GROWTH: {
     VILLAGE: Number(process.env.NEXT_PUBLIC_PEOPLE_GROWTH_VILLAGE!),
