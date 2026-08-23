@@ -22,7 +22,10 @@ import type { islandInfoData } from './schema/islandTypes';
  * SQLite 上は string ですが、Kysely 経由での SELECT 時はオブジェクト、
  * INSERT/UPDATE 時は文字列またはオブジェクトを受け取れるように定義します。
  */
-export interface IslandTable extends Omit<GeneratedDB['island'], 'island_info'> {
+export interface IslandTable extends Omit<
+  GeneratedDB['island'],
+  'island_info' | 'labor_factory' | 'labor_mining'
+> {
   island_info: ColumnType<islandInfoData, string | islandInfoData, string | islandInfoData>;
   labor_factory?: number;
   labor_mining?: number;
