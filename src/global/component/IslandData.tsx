@@ -4,6 +4,7 @@
  */
 import { Island } from '@/db/kysely';
 import { isEqual } from '@/global/function/collection';
+import { calculateEmploymentStats } from '@/global/function/employment';
 import { forwardRef, memo } from 'react';
 import META_DATA from '../define/metadata';
 
@@ -26,8 +27,23 @@ export default memo(
   ) {
     if (!IslandDataProps.data) return null;
 
-    const { rank, population, money, food, area, farm, factory, mining } = IslandDataProps.data;
-    const unemploymentRate = (Math.max(population - farm - factory - mining, 0) / population) * 100;
+    const {
+      rank,
+      population,
+      money,
+      food,
+      area,
+      farm,
+      labor_factory: laborFactory = 0,
+      labor_mining: laborMining = 0,
+    } = IslandDataProps.data;
+    const employment = calculateEmploymentStats({
+      population,
+      farmCapacity: farm,
+      factoryCapacity: laborFactory,
+      miningCapacity: laborMining,
+    });
+    const unemploymentRate = population > 0 ? (employment.unemployed / population) * 100 : 0;
     return (
       <div
         ref={ref}
@@ -68,10 +84,10 @@ export default memo(
         <div className={`${value} col-span-2 col-start-4 row-start-4`}>{`${farm}人`}</div>
         {/* 工場規模 */}
         <div className={`${title} col-span-2 col-start-6 row-start-3`}>工場規模</div>
-        <div className={`${value} col-span-2 col-start-6 row-start-4`}>{`${factory}人`}</div>
+        <div className={`${value} col-span-2 col-start-6 row-start-4`}>{`${laborFactory}人`}</div>
         {/* 採掘場規模 */}
         <div className={`${title} col-span-2 col-start-8 row-start-3`}>採掘場規模</div>
-        <div className={`${value} col-span-2 col-start-8 row-start-4`}>{`${mining}人`}</div>
+        <div className={`${value} col-span-2 col-start-8 row-start-4`}>{`${laborMining}人`}</div>
       </div>
     );
   }),

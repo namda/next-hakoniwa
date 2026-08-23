@@ -100,6 +100,8 @@ export async function getAllIslands(db: Kysely<Database> | Transaction<Database>
       'island.farm',
       'island.factory',
       'island.mining',
+      'island.labor_factory',
+      'island.labor_mining',
       'island.missile',
       'user.island_name',
     ])
@@ -233,11 +235,11 @@ export const updateIslands = async (
       const values = chunk.map((tmp) => {
         const islandInfoJson = JSON.stringify(sanitizeIslandInfoForPersistence(tmp.island_info));
         const islandInfoParam = isSqlite ? sql`jsonb(${islandInfoJson})` : islandInfoJson;
-        return sql`(${tmp.uuid}, ${tmp.money}, ${tmp.area}, ${tmp.population}, ${tmp.food}, ${tmp.farm}, ${tmp.factory}, ${tmp.mining}, ${tmp.missile}, ${typeof tmp.prize === 'string' ? tmp.prize : ''}, ${islandInfoParam})`;
+        return sql`(${tmp.uuid}, ${tmp.money}, ${tmp.area}, ${tmp.population}, ${tmp.food}, ${tmp.farm}, ${tmp.factory}, ${tmp.mining}, ${tmp.labor_factory ?? 0}, ${tmp.labor_mining ?? 0}, ${tmp.missile}, ${typeof tmp.prize === 'string' ? tmp.prize : ''}, ${islandInfoParam})`;
       });
 
       if (isSqlite) {
-        await sql`INSERT INTO island (uuid, money, area, population, food, farm, factory, mining, missile, prize, island_info)
+        await sql`INSERT INTO island (uuid, money, area, population, food, farm, factory, mining, labor_factory, labor_mining, missile, prize, island_info)
           VALUES ${sql.join(values)}
           ON CONFLICT(uuid) DO UPDATE SET
             money = excluded.money,
@@ -247,11 +249,13 @@ export const updateIslands = async (
             farm = excluded.farm,
             factory = excluded.factory,
             mining = excluded.mining,
+            labor_factory = excluded.labor_factory,
+            labor_mining = excluded.labor_mining,
             missile = excluded.missile,
             prize = excluded.prize,
             island_info = excluded.island_info`.execute(trx);
       } else {
-        await sql`INSERT INTO island (uuid, money, area, population, food, farm, factory, mining, missile, prize, island_info)
+        await sql`INSERT INTO island (uuid, money, area, population, food, farm, factory, mining, labor_factory, labor_mining, missile, prize, island_info)
           VALUES ${sql.join(values)}
           ON DUPLICATE KEY UPDATE
             money = VALUES(money),
@@ -261,6 +265,8 @@ export const updateIslands = async (
             farm = VALUES(farm),
             factory = VALUES(factory),
             mining = VALUES(mining),
+            labor_factory = VALUES(labor_factory),
+            labor_mining = VALUES(labor_mining),
             missile = VALUES(missile),
             prize = VALUES(prize),
             island_info = VALUES(island_info)`.execute(trx);
@@ -578,7 +584,12 @@ const isEarthquakeDamageMap = (islandInfo: islandInfo) => {
     islandInfo.type === 'people' &&
     islandInfo.landValue >= valueOrSafeLimit(people.level?.[2], 'max');
 
-  return isCity || islandInfo.type === 'fake_defense_base' || islandInfo.type === 'factory';
+  return (
+    isCity ||
+    islandInfo.type === 'fake_defense_base' ||
+    islandInfo.type === 'factory' ||
+    islandInfo.type === 'labor_factory'
+  );
 };
 
 /**
@@ -620,6 +631,7 @@ export const earthquakeExecute = (islandUuid: string, turn: number) => {
 const isLackFoodsDamageMap = (islandInfo: islandInfo) => {
   switch (islandInfo.type) {
     case 'factory':
+    case 'labor_factory':
     case 'farm':
     case 'missile':
     case 'defense_base':
@@ -671,6 +683,7 @@ const isTsunamiDamageMap = (islandInfo: islandInfo) => {
   switch (islandInfo.type) {
     case 'people':
     case 'factory':
+    case 'labor_factory':
     case 'farm':
     case 'missile':
     case 'defense_base':
@@ -1142,6 +1155,8 @@ export const setAllIslandStats = (uuid: string) => {
   islandData.farm = stats.farm;
   islandData.factory = stats.factory;
   islandData.mining = stats.mining;
+  islandData.labor_factory = stats.laborFactory;
+  islandData.labor_mining = stats.laborMining;
   islandData.missile = stats.missile;
 };
 
@@ -1169,6 +1184,8 @@ export async function deleteNeglectedIslands(
       'island.farm',
       'island.factory',
       'island.mining',
+      'island.labor_factory',
+      'island.labor_mining',
       'island.missile',
       'user.island_name',
       'last_login.last_login_at',

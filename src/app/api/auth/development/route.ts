@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
           'island.farm',
           'island.factory',
           'island.mining',
+          'island.labor_factory',
+          'island.labor_mining',
           'island.missile',
           'user.user_name',
           'user.island_name_prefix',

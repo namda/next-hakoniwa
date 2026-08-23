@@ -241,23 +241,22 @@ export const immediateFarmDev: planType = {
 };
 
 export const factoryDev: planType = {
-  planNo: 4,
+  planNo: 6,
   type: 'factory_dev',
   coordinate: true,
   category: '建設',
-  name: '工場建設',
-  description:
-    '平地に工場を建設し、人口に応じた資金を生産します。すでに工場の場合は規模を拡大し、一度により多くの資金を生産できるようにします。',
+  name: '先進工場建設',
+  description: '平地に人口を必要としない先進工場を建設します。既存の先進工場では規模を拡大します。',
   otherIsland: false,
   immediate: false,
   mapType: ['plains', 'people', 'factory'],
-  cost: 100,
+  cost: 1000,
   costType: 'money',
   minTimes: 1,
   maxTimes: 99,
   maxTimesPerTurn: 1,
   unit: '回',
-  predictLandType: (t) => (t === 'plains' ? 'factory' : t),
+  predictLandType: (t) => (t === 'plains' || t === 'people' ? 'factory' : t),
   changeData: function ({ plan, turn, uuid }: changeDataArgs) {
     using toIslandGetSet = islandDataGetSet(uuid.toIsland);
     const toIsland = toIslandGetSet.islandData;
@@ -302,6 +301,68 @@ export const factoryDev: planType = {
     return { nextPlan: this.immediate, log: [{ ...baseLog, secret_log: log, log: log }] };
   },
 };
+export const laborFactoryDev: planType = {
+  planNo: 4,
+  type: 'labor_factory_dev',
+  coordinate: true,
+  category: '建設',
+  name: '工場建設',
+  description:
+    '平地に工場を建設します。工場では農場へ配属された後の労働人口が働き、資金を生産します。',
+  otherIsland: false,
+  immediate: false,
+  mapType: ['plains', 'people', 'labor_factory'],
+  cost: 100,
+  costType: 'money',
+  minTimes: 1,
+  maxTimes: 99,
+  maxTimesPerTurn: 1,
+  unit: '回',
+  predictLandType: (t) => (t === 'plains' || t === 'people' ? 'labor_factory' : t),
+  changeData: function ({ plan, turn, uuid }: changeDataArgs) {
+    using toIslandGetSet = islandDataGetSet(uuid.toIsland);
+    const toIsland = toIslandGetSet.islandData;
+    if (!toIsland) throw new Error(`島情報が見つかりません。uuid=${uuid.toIsland}`);
+
+    const validConstAndLand = validCostAndLandType(toIsland, this, plan.x, plan.y, turn);
+    if (validConstAndLand.nextPlan) {
+      plan.times = 0;
+      return validConstAndLand;
+    }
+
+    const mapInfo = toIsland.island_info[mapArrayConverter(plan.x, plan.y)];
+    switch (mapInfo.type) {
+      case 'labor_factory': {
+        const { maxVal } = getMapDefine('labor_factory');
+        const addValue = 1;
+        if (maxVal >= mapInfo.landValue + addValue) {
+          changeMapData(toIsland, plan.x, plan.y, 'labor_factory', {
+            type: 'add',
+            value: addValue,
+          });
+        }
+        toIsland.money -= this.cost;
+        break;
+      }
+      default: {
+        const { defVal } = getMapDefine('labor_factory');
+        changeMapData(toIsland, plan.x, plan.y, 'labor_factory', {
+          type: 'ins',
+          value: defVal,
+        });
+        toIsland.money -= this.cost;
+        break;
+      }
+    }
+
+    const baseLog = getBaseLog(turn, toIsland);
+    const log = logCommonDev(toIsland, this, plan.x, plan.y);
+    plan.times--;
+
+    return { nextPlan: this.immediate, log: [{ ...baseLog, secret_log: log, log }] };
+  },
+};
+
 export const immediateFactoryDev: planType = {
   planNo: 5,
   type: 'immediate_factory_dev',
@@ -309,17 +370,17 @@ export const immediateFactoryDev: planType = {
   category: '建設',
   name: '高速工場建設',
   description:
-    '即座に工場の建設または規模拡大を行います。指定した回数分だけターンを消費せずに連続で実行できますが、費用は割高です。',
+    '即座に有人工場の建設または規模拡大を行います。指定した回数分だけターンを消費せずに連続実行できますが、費用は割高です。',
   otherIsland: false,
   immediate: true,
-  mapType: ['plains', 'people', 'factory'],
+  mapType: ['plains', 'people', 'labor_factory'],
   cost: 600,
   costType: 'money',
   minTimes: 1,
   maxTimes: 99,
   maxTimesPerTurn: 'infinity',
   unit: '回',
-  predictLandType: (t) => (t === 'plains' ? 'factory' : t),
+  predictLandType: (t) => (t === 'plains' || t === 'people' ? 'labor_factory' : t),
   changeData: function ({ plan, turn, uuid }: changeDataArgs) {
     using toIslandGetSet = islandDataGetSet(uuid.toIsland);
     const toIsland = toIslandGetSet.islandData;
@@ -338,13 +399,16 @@ export const immediateFactoryDev: planType = {
     let devCount = 0;
     for (let i = 0; i < plan.times; i++) {
       switch (mapInfo.type) {
-        case 'factory': {
-          const { maxVal } = getMapDefine('factory');
+        case 'labor_factory': {
+          const { maxVal } = getMapDefine('labor_factory');
           // 加算する施設の値
           const addValue = 1;
           // 最大値以下なら施設を加算する
           if (maxVal >= mapInfo.landValue + addValue) {
-            changeMapData(toIsland, plan.x, plan.y, 'factory', { type: 'add', value: addValue });
+            changeMapData(toIsland, plan.x, plan.y, 'labor_factory', {
+              type: 'add',
+              value: addValue,
+            });
           }
           // 費用の支払い
           toIsland.money -= this.cost;
@@ -352,8 +416,8 @@ export const immediateFactoryDev: planType = {
           break;
         }
         default: {
-          const { defVal } = getMapDefine('factory');
-          changeMapData(toIsland, plan.x, plan.y, 'factory', { type: 'ins', value: defVal });
+          const { defVal } = getMapDefine('labor_factory');
+          changeMapData(toIsland, plan.x, plan.y, 'labor_factory', { type: 'ins', value: defVal });
           // 費用の支払い
           toIsland.money -= this.cost;
           devCount++;
@@ -377,16 +441,16 @@ export const immediateFactoryDev: planType = {
 };
 
 export const miningDev: planType = {
-  planNo: 6,
+  planNo: 9,
   type: 'mining_dev',
   coordinate: true,
   category: '建設',
-  name: '採掘場整備',
-  description: '山を採掘場にします。すでに採掘場の場合は規模を拡大します。',
+  name: '無人化採掘場整備',
+  description: '山に人口を必要としない無人化採掘場を整備します。既存施設では規模を拡大します。',
   otherIsland: false,
   immediate: false,
   mapType: ['mountain', 'mining'],
-  cost: 300,
+  cost: 3000,
   costType: 'money',
   minTimes: 1,
   maxTimes: 99,
@@ -437,24 +501,86 @@ export const miningDev: planType = {
     return { nextPlan: this.immediate, log: [{ ...baseLog, secret_log: log, log: log }] };
   },
 };
-export const immediateMiningDev: planType = {
+export const laborMiningDev: planType = {
   planNo: 7,
+  type: 'labor_mining_dev',
+  coordinate: true,
+  category: '建設',
+  name: '採掘場整備',
+  description:
+    '山に採掘場を整備します。採掘場では農場へ配属された後の労働人口が働き、資金を生産します。',
+  otherIsland: false,
+  immediate: false,
+  mapType: ['mountain', 'labor_mining'],
+  cost: 300,
+  costType: 'money',
+  minTimes: 1,
+  maxTimes: 99,
+  maxTimesPerTurn: 1,
+  unit: '回',
+  predictLandType: (t) => (t === 'mountain' ? 'labor_mining' : t),
+  changeData: function ({ plan, turn, uuid }: changeDataArgs) {
+    using toIslandGetSet = islandDataGetSet(uuid.toIsland);
+    const toIsland = toIslandGetSet.islandData;
+    if (!toIsland) throw new Error(`島情報が見つかりません。uuid=${uuid.toIsland}`);
+
+    const validConstAndLand = validCostAndLandType(toIsland, this, plan.x, plan.y, turn);
+    if (validConstAndLand.nextPlan) {
+      plan.times = 0;
+      return validConstAndLand;
+    }
+
+    const mapInfo = toIsland.island_info[mapArrayConverter(plan.x, plan.y)];
+    switch (mapInfo.type) {
+      case 'mountain': {
+        const { defVal } = getMapDefine('labor_mining');
+        changeMapData(toIsland, plan.x, plan.y, 'labor_mining', {
+          type: 'ins',
+          value: defVal,
+        });
+        toIsland.money -= this.cost;
+        break;
+      }
+      case 'labor_mining': {
+        const { maxVal } = getMapDefine('labor_mining');
+        const addValue = 1;
+        if (maxVal >= mapInfo.landValue + addValue) {
+          changeMapData(toIsland, plan.x, plan.y, 'labor_mining', {
+            type: 'add',
+            value: addValue,
+          });
+        }
+        toIsland.money -= this.cost;
+        break;
+      }
+    }
+
+    const baseLog = getBaseLog(turn, toIsland);
+    const log = logCommonDev(toIsland, this, plan.x, plan.y);
+    plan.times--;
+
+    return { nextPlan: this.immediate, log: [{ ...baseLog, secret_log: log, log }] };
+  },
+};
+
+export const immediateMiningDev: planType = {
+  planNo: 8,
   type: 'immediate_mining_dev',
   coordinate: true,
   category: '建設',
   name: '高速採掘場整備',
   description:
-    '即座に採掘場の建設または規模拡大を行います。指定した回数分だけ連続で実行できますが、通常の整備より費用がかかります。',
+    '即座に有人採掘場の建設または規模拡大を行います。指定した回数分だけ連続実行できますが、通常の整備より費用がかかります。',
   otherIsland: false,
   immediate: true,
-  mapType: ['mountain', 'mining'],
+  mapType: ['mountain', 'labor_mining'],
   cost: 800,
   costType: 'money',
   minTimes: 1,
   maxTimes: 99,
   maxTimesPerTurn: 'infinity',
   unit: '回',
-  predictLandType: (t) => (t === 'mountain' ? 'mining' : t),
+  predictLandType: (t) => (t === 'mountain' ? 'labor_mining' : t),
   changeData: function ({ plan, turn, uuid }: changeDataArgs) {
     using toIslandGetSet = islandDataGetSet(uuid.toIsland);
     const toIsland = toIslandGetSet.islandData;
@@ -474,20 +600,23 @@ export const immediateMiningDev: planType = {
     for (let i = 0; i < plan.times; i++) {
       switch (mapInfo.type) {
         case 'mountain': {
-          const { defVal } = getMapDefine('mining');
-          changeMapData(toIsland, plan.x, plan.y, 'mining', { type: 'ins', value: defVal });
+          const { defVal } = getMapDefine('labor_mining');
+          changeMapData(toIsland, plan.x, plan.y, 'labor_mining', { type: 'ins', value: defVal });
           // 費用の支払い
           toIsland.money -= this.cost;
           devCount++;
           break;
         }
-        case 'mining': {
-          const { maxVal } = getMapDefine('mining');
+        case 'labor_mining': {
+          const { maxVal } = getMapDefine('labor_mining');
           // 加算する施設の値
           const addValue = 1;
           // 最大値以下なら施設を加算する
           if (maxVal >= mapInfo.landValue + addValue) {
-            changeMapData(toIsland, plan.x, plan.y, 'mining', { type: 'add', value: addValue });
+            changeMapData(toIsland, plan.x, plan.y, 'labor_mining', {
+              type: 'add',
+              value: addValue,
+            });
           }
           // 費用の支払い
           toIsland.money -= this.cost;
@@ -512,7 +641,7 @@ export const immediateMiningDev: planType = {
 };
 
 export const missileDev: planType = {
-  planNo: 9,
+  planNo: 10,
   type: 'missile_dev',
   coordinate: true,
   category: '建設',
@@ -557,7 +686,7 @@ export const missileDev: planType = {
   },
 };
 export const immediateMissileDev: planType = {
-  planNo: 10,
+  planNo: 11,
   type: 'immediate_missile_dev',
   coordinate: true,
   category: '建設',
@@ -603,7 +732,7 @@ export const immediateMissileDev: planType = {
 };
 
 export const defenseBaseDev: planType = {
-  planNo: 11,
+  planNo: 12,
   type: 'defense_base_dev',
   coordinate: true,
   category: '建設',
@@ -664,7 +793,7 @@ export const defenseBaseDev: planType = {
   },
 };
 export const immediateDefenseBaseDev: planType = {
-  planNo: 12,
+  planNo: 13,
   type: 'immediate_defense_base_dev',
   coordinate: true,
   category: '建設',
@@ -726,7 +855,7 @@ export const immediateDefenseBaseDev: planType = {
 };
 
 export const submarineMissileDev: planType = {
-  planNo: 13,
+  planNo: 14,
   type: 'submarine_missile_dev',
   coordinate: true,
   category: '建設',

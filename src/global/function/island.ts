@@ -32,10 +32,14 @@ export type IslandStats = {
   population: number;
   /** 農場規模 */
   farm: number;
-  /** 工場規模 */
+  /** 先進工場規模 */
   factory: number;
-  /** 採掘規模 */
+  /** 無人化採掘場規模 */
   mining: number;
+  /** 有人工場規模 */
+  laborFactory: number;
+  /** 有人採掘場規模 */
+  laborMining: number;
   /** ミサイル保有数 */
   missile: number;
 };
@@ -50,6 +54,8 @@ export const createIslandStats = (): IslandStats => ({
   farm: 0,
   factory: 0,
   mining: 0,
+  laborFactory: 0,
+  laborMining: 0,
   missile: 0,
 });
 
@@ -82,6 +88,12 @@ export const accumulateCellStats = (item: islandInfo, mapDef: mapType, stats: Is
       break;
     case 'mining':
       stats.mining += val;
+      break;
+    case 'labor_factory':
+      stats.laborFactory += val;
+      break;
+    case 'labor_mining':
+      stats.laborMining += val;
       break;
     case 'people':
       stats.population += val;
@@ -433,6 +445,7 @@ export const wideDamage = (toIslandUuid: string, x: number, y: number, turn: num
         'wasteland',
         'mountain',
         'mining',
+        'labor_mining',
         'submarine_missile',
         'oil_field',
       ];

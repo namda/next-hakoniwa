@@ -20,10 +20,22 @@ export async function GET(request: Request) {
 
   const history = await db
     .selectFrom('turn_resource_history')
-    .select(['turn', 'population', 'food', 'money'])
+    .select([
+      'turn',
+      'population',
+      'food',
+      'money',
+      'farm',
+      'factory',
+      'mining',
+      'labor_factory',
+      'labor_mining',
+      'food_production',
+      'food_consumption',
+    ])
     .where('uuid', '=', uuid)
     .orderBy('turn', 'desc')
-    .limit(100)
+    .limit(3000)
     .execute();
 
   // 取得はdesc、表示は時系列順にしたいのでレスポンス前に反転する

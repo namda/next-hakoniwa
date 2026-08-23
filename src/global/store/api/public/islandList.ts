@@ -22,6 +22,8 @@ type PublicIslandListItem = {
   farm: number;
   factory: number;
   mining: number;
+  labor_factory: number;
+  labor_mining: number;
   last_login_at: number;
 };
 

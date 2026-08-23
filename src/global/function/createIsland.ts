@@ -187,6 +187,11 @@ export const createIsland = async (
   initDefenseBase(data, center);
 
   const population = calcAllTypeNum(data, 'people');
+  const farm = calcAllTypeNum(data, 'farm');
+  const factory = calcAllTypeNum(data, 'factory');
+  const mining = calcAllTypeNum(data, 'mining');
+  const laborFactory = calcAllTypeNum(data, 'labor_factory');
+  const laborMining = calcAllTypeNum(data, 'labor_mining');
 
   // Transaction
   await client.transaction().execute(async (trx) => {
@@ -204,9 +209,11 @@ export const createIsland = async (
         food: initFood,
         area: countArea(data),
         population,
-        farm: calcAllTypeNum(data, 'farm'),
-        factory: calcAllTypeNum(data, 'factory'),
-        mining: calcAllTypeNum(data, 'mining'),
+        farm,
+        factory,
+        mining,
+        labor_factory: laborFactory,
+        labor_mining: laborMining,
         missile: calcAllTypeNum(data, 'missile') + calcAllTypeNum(data, 'submarine_missile'),
         island_info: islandInfoVal,
       })
@@ -224,6 +231,13 @@ export const createIsland = async (
         population,
         food: initFood,
         money: initMoney,
+        farm,
+        factory,
+        mining,
+        labor_factory: laborFactory,
+        labor_mining: laborMining,
+        food_production: Math.trunc(Math.min(population, farm) * META_DATA.FARM_PER_PEOPLE),
+        food_consumption: Math.trunc(population * META_DATA.EATEN_FOOD_PER_PEOPLE),
       })
       .execute();
 

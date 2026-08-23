@@ -32,6 +32,7 @@ import { getMapDefine, mapType } from '@/global/define/mapType';
 import META_DATA from '@/global/define/metadata';
 import { financing } from '@/global/define/planCategory/planManege';
 import { getPlanDefine } from '@/global/define/planType';
+import { calculateEmploymentStats } from '@/global/function/employment';
 import { createUuid25 } from '@/global/function/encrypt';
 import { IslandStats, accumulateCellStats, createIslandStats } from '@/global/function/island';
 import { turnProceedLogger } from '@/global/function/logger';
@@ -310,15 +311,21 @@ function incomeAndEatenPhase(fromUuid: string) {
   const fromIsland = fromIslandGetSet.islandData;
   if (!fromIsland) throw new Error(`島情報が見つかりません。uuid=${fromUuid}`);
 
-  if (fromIsland.population > fromIsland.farm) {
-    fromIsland.food += fromIsland.farm;
-    fromIsland.money += Math.trunc(
+  const employment = calculateEmploymentStats({
+    population: fromIsland.population,
+    farmCapacity: fromIsland.farm,
+    factoryCapacity: fromIsland.labor_factory ?? 0,
+    miningCapacity: fromIsland.labor_mining ?? 0,
+  });
+
+  fromIsland.food += Math.trunc(employment.farmWorkers * META_DATA.FARM_PER_PEOPLE);
+  fromIsland.money += Math.trunc(
+    employment.factoryWorkers * META_DATA.FACTORY_PER_PEOPLE +
+      employment.miningWorkers * META_DATA.MINING_PER_PEOPLE +
       fromIsland.factory * META_DATA.FACTORY_PER_PEOPLE +
-        fromIsland.mining * META_DATA.MINING_PER_PEOPLE
-    );
-  } else {
-    fromIsland.food += fromIsland.population;
-  }
+      fromIsland.mining * META_DATA.MINING_PER_PEOPLE
+  );
+
   // 食料消費
   fromIsland.food -= Math.trunc(fromIsland.population * META_DATA.EATEN_FOOD_PER_PEOPLE);
 }
@@ -479,6 +486,8 @@ function processMapScan(currentTurn: number, fromUuid: string, logArray: TurnLog
   islandInfo.area = stats.area;
   islandInfo.factory = Math.trunc(stats.factory);
   islandInfo.mining = Math.trunc(stats.mining);
+  islandInfo.labor_factory = Math.trunc(stats.laborFactory);
+  islandInfo.labor_mining = Math.trunc(stats.laborMining);
   islandInfo.farm = Math.trunc(stats.farm);
   islandInfo.population = Math.trunc(stats.population);
   islandInfo.missile = Math.trunc(stats.missile);
@@ -701,7 +710,12 @@ async function processTurnForIslands(
         foodSign,
         diffFood,
         popSign,
-        diffPopulation
+        diffPopulation,
+        {
+          money: currentIsland.money,
+          food: currentIsland.food,
+          population: currentIsland.population,
+        }
       );
 
       logArray.push({
@@ -749,12 +763,26 @@ async function saveTurnResourceHistory(
         population: island.population,
         food: island.food,
         money: island.money,
+        farm: island.farm,
+        factory: island.factory,
+        mining: island.mining,
+        labor_factory: island.labor_factory ?? 0,
+        labor_mining: island.labor_mining ?? 0,
+        food_production: Math.trunc(
+          calculateEmploymentStats({
+            population: island.population,
+            farmCapacity: island.farm,
+            factoryCapacity: island.labor_factory ?? 0,
+            miningCapacity: island.labor_mining ?? 0,
+          }).farmWorkers * META_DATA.FARM_PER_PEOPLE
+        ),
+        food_consumption: Math.trunc(island.population * META_DATA.EATEN_FOOD_PER_PEOPLE),
       }))
     )
     .execute();
 
   // 古い履歴の一括クリーンアップ。
-  // uuidごとの100件目のturnをウィンドウ関数で一度に求めてから削除する。
+  // uuidごとの3000件目のturnをウィンドウ関数で一度に求めてから削除する。
   const uuidParams = uuids.map((uuid) => sql`${uuid}`);
   const cutoffRows = await sql<{ uuid: string; cutoff_turn: number }>`
     SELECT ranked.uuid, ranked.turn AS cutoff_turn
@@ -763,7 +791,7 @@ async function saveTurnResourceHistory(
       FROM turn_resource_history
       WHERE uuid IN (${sql.join(uuidParams)})
     ) AS ranked
-    WHERE ranked.rn = 100
+    WHERE ranked.rn = 3000
   `.execute(db);
 
   if (cutoffRows.rows.length === 0) return;

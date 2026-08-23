@@ -37,6 +37,8 @@ export async function GET() {
           'island.farm',
           'island.factory',
           'island.mining',
+          'island.labor_factory',
+          'island.labor_mining',
           'last_login.last_login_at',
           sql<number>`RANK() OVER (ORDER BY island.population DESC)`.as('rank'),
         ])

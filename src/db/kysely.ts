@@ -22,16 +22,32 @@ import type { islandInfoData } from './schema/islandTypes';
  * SQLite 上は string ですが、Kysely 経由での SELECT 時はオブジェクト、
  * INSERT/UPDATE 時は文字列またはオブジェクトを受け取れるように定義します。
  */
-export interface IslandTable extends Omit<GeneratedDB['island'], 'island_info'> {
+export interface IslandTable extends Omit<
+  GeneratedDB['island'],
+  'island_info' | 'labor_factory' | 'labor_mining'
+> {
   island_info: ColumnType<islandInfoData, string | islandInfoData, string | islandInfoData>;
+  labor_factory?: number;
+  labor_mining?: number;
 }
 
 /**
  * データベース全体の定義をオーバーライド
  * 自動生成された GeneratedDB の 'island' 表を、JSON 対応の IslandTable で差し替えます。
  */
-export interface Database extends Omit<GeneratedDB, 'island'> {
+export type TurnResourceHistoryTable = GeneratedDB['turn_resource_history'] & {
+  farm: number | null;
+  factory: number | null;
+  mining: number | null;
+  labor_factory: number | null;
+  labor_mining: number | null;
+  food_production: number | null;
+  food_consumption: number | null;
+};
+
+export interface Database extends Omit<GeneratedDB, 'island' | 'turn_resource_history'> {
   island: IslandTable;
+  turn_resource_history: TurnResourceHistoryTable;
 }
 
 export type Island = Selectable<IslandTable>;
@@ -43,7 +59,7 @@ export type Auth = Selectable<GeneratedDB['auth']>;
 export type EventRate = Selectable<GeneratedDB['event_rate']>;
 export type Plan = Selectable<GeneratedDB['plan']>;
 export type TurnLog = Selectable<GeneratedDB['turn_log']>;
-export type TurnResourceHistory = Selectable<GeneratedDB['turn_resource_history']>;
+export type TurnResourceHistory = Selectable<TurnResourceHistoryTable>;
 export type TurnState = Selectable<GeneratedDB['turn_state']>;
 export type LastLogin = Selectable<GeneratedDB['last_login']>;
 export type ModeratorAuth = Selectable<GeneratedDB['moderator_auth']>;

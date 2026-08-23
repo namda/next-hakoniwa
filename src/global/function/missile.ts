@@ -64,8 +64,10 @@ const mergeBreakdowns = (target: MissileBreakdown, source: MissileBreakdown) => 
 const CITY_FACILITY_TYPES = new Set([
   'people',
   'factory',
+  'labor_factory',
   'farm',
   'mining',
+  'labor_mining',
   'missile',
   'defense_base',
   'fake_defense_base',

@@ -191,14 +191,26 @@ export default function ManualPage() {
           <ItemCard
             title="工場"
             imageSrc="/img/facility/factory.gif"
-            description="「資金」を効率よく生産します。"
-            info={`1人規模あたり毎ターン ${META_DATA.FACTORY_PER_PEOPLE}${META_DATA.UNIT_MONEY} の資金を生産します。`}
+            description="農場へ配属された後の島民が働き、「資金」を生産する有人施設です。"
+            info={`就業者1人あたり毎ターン ${META_DATA.FACTORY_PER_PEOPLE}${META_DATA.UNIT_MONEY} の資金を生産します。`}
+          />
+          <ItemCard
+            title="先進工場"
+            imageSrc="/img/facility/factory.gif"
+            description="人口を必要とせず、設備規模の全量が常時稼働して資金を生産する自動化施設です。"
+            info={`設備1人規模あたり毎ターン ${META_DATA.FACTORY_PER_PEOPLE}${META_DATA.UNIT_MONEY} の資金を生産します。`}
           />
           <ItemCard
             title="採掘場"
             imageSrc="/img/facility/mining.gif"
-            description="「資金」を効率よく生産します。"
-            info={`1人規模あたり毎ターン ${META_DATA.MINING_PER_PEOPLE}${META_DATA.UNIT_MONEY} の資金を生産します。`}
+            description="農場へ配属された後の島民が働き、「資金」を生産する有人施設です。"
+            info={`就業者1人あたり毎ターン ${META_DATA.MINING_PER_PEOPLE}${META_DATA.UNIT_MONEY} の資金を生産します。`}
+          />
+          <ItemCard
+            title="無人化採掘場"
+            imageSrc="/img/facility/mining.gif"
+            description="人口を必要とせず、設備規模の全量が常時稼働して資金を生産する自動化施設です。"
+            info={`設備1人規模あたり毎ターン ${META_DATA.MINING_PER_PEOPLE}${META_DATA.UNIT_MONEY} の資金を生産します。`}
           />
           <ItemCard
             title="海底油田"
