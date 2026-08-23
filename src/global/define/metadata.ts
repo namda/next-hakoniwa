@@ -108,11 +108,13 @@ const META_DATA = Object.freeze({
   /** 怪獣出現率 (% / turn) */
   MONSTER_SPAWN_RATE: {
     BELOW_1M: Number(process.env.NEXT_PUBLIC_MONSTER_SPAWN_RATE_BELOW_1M!),
-    AT_1M: Number(process.env.NEXT_PUBLIC_MONSTER_SPAWN_RATE_AT_1M!),
-    PER_EXTRA_1M: Number(process.env.NEXT_PUBLIC_MONSTER_SPAWN_RATE_PER_EXTRA_1M!),
   },
-  /** 既存イベント設定の初期値（互換性維持） */
+  /** 100万人以上の面積基本出現率 (% / 100万坪 / turn) */
   MONSTER_RATE: Number(process.env.NEXT_PUBLIC_MONSTER_RATE!),
+  /** 100万人以上の追加人口100万人あたりの倍率係数 */
+  MONSTER_POPULATION_MULTIPLIER_PER_EXTRA_1M: Number(
+    process.env.NEXT_PUBLIC_MONSTER_POPULATION_MULTIPLIER_PER_EXTRA_1M!
+  ),
   /** ターンあたりの最大人口増加量 ( 百人 / Turn ) */
   PEOPLE_GROWTH: {
     VILLAGE: Number(process.env.NEXT_PUBLIC_PEOPLE_GROWTH_VILLAGE!),

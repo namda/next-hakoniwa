@@ -746,14 +746,16 @@ const getPopMonsterArray = (population: number) => {
 const ONE_MILLION = 1_000_000;
 
 /** 島人口から通常怪獣の出現率（% / turn）を算出する */
-export const calculateMonsterSpawnRate = (population: number) => {
+export const calculateMonsterSpawnRate = (population: number, area: number) => {
   if (population < ONE_MILLION) {
     return META_DATA.MONSTER_SPAWN_RATE.BELOW_1M * (population / ONE_MILLION);
   }
-  return (
-    META_DATA.MONSTER_SPAWN_RATE.AT_1M +
-    META_DATA.MONSTER_SPAWN_RATE.PER_EXTRA_1M * ((population - ONE_MILLION) / ONE_MILLION)
-  );
+  const areaRate = META_DATA.MONSTER_RATE * (area / 100);
+  const populationMultiplier =
+    1 +
+    META_DATA.MONSTER_POPULATION_MULTIPLIER_PER_EXTRA_1M *
+      ((population - ONE_MILLION) / ONE_MILLION);
+  return areaRate * populationMultiplier;
 };
 
 const hasNaturalMonster = (island: islandInfoTurnProgress) =>
@@ -823,7 +825,7 @@ export const popMonsterExecute = (islandUuid: string, turn: number) => {
 
   if (island.population < ONE_MILLION && hasNaturalMonster(island)) return;
 
-  if (checkProbability(calculateMonsterSpawnRate(island.population))) {
+  if (checkProbability(calculateMonsterSpawnRate(island.population, island.area))) {
     const popMonsterType = monsterArray[randomIntInRange(0, monsterArray.length - 1)];
     return popMonster(island, popMonsterType, turn);
   }

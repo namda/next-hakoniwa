@@ -17,7 +17,9 @@ vi.mock('@/global/define/metadata', async (importOriginal) => {
     default: {
       ...actual.default,
       MAP_SIZE: 12,
-      MONSTER_SPAWN_RATE: { BELOW_1M: 0.03, AT_1M: 0.1, PER_EXTRA_1M: 0.05 },
+      MONSTER_SPAWN_RATE: { BELOW_1M: 0.03 },
+      MONSTER_RATE: 0.006944,
+      MONSTER_POPULATION_MULTIPLIER_PER_EXTRA_1M: 0.25,
     },
   };
 });
@@ -199,16 +201,30 @@ describe('popMonsterExecute', () => {
   test.each([
     [100_000, 0.003],
     [500_000, 0.015],
-    [1_000_000, 0.1],
-    [1_500_000, 0.125],
-    [2_000_000, 0.15],
-    [3_000_000, 0.2],
-  ])('人口%s人の出現率を%s%%/turnとして算出する', (population, expected) => {
-    expect(calculateMonsterSpawnRate(population)).toBeCloseTo(expected);
+    [999_999, 0.03 * (999_999 / 1_000_000)],
+  ])('100万人未満では人口%s人の出現率を%s%%/turnとして算出する', (population, expected) => {
+    expect(calculateMonsterSpawnRate(population, 5000)).toBeCloseTo(expected);
+  });
+
+  test.each([
+    [1000, 0.06944],
+    [2500, 0.1736],
+    [5000, 0.3472],
+  ])('100万人では面積%s万坪に比例して出現率が%s%%になる', (area, expected) => {
+    expect(calculateMonsterSpawnRate(1_000_000, area)).toBeCloseTo(expected);
+  });
+
+  test.each([
+    [1_000_000, 0.3472],
+    [2_000_000, 0.434],
+    [3_000_000, 0.5208],
+    [5_000_000, 0.6944],
+  ])('5000万坪では人口%s人の補正後出現率が%s%%になる', (population, expected) => {
+    expect(calculateMonsterSpawnRate(population, 5000)).toBeCloseTo(expected);
   });
 
   test('100万人未満では既に怪獣がいる場合に自然出現判定をしない', () => {
-    const island = createIsland({ population: 500_000, area: 100, monster: 0.03 });
+    const island = createIsland({ population: 999_999, area: 5000, monster: 0.03 });
     island.island_info[mapArrayConverter(1, 1)] = {
       x: 1,
       y: 1,
@@ -223,8 +239,8 @@ describe('popMonsterExecute', () => {
 
   test('100万人以上では既存怪獣がいても1匹だけ自然出現する', () => {
     const island = createIsland({
-      population: 1_500_000,
-      area: 100,
+      population: 1_000_000,
+      area: 5000,
       monster: 0.03,
       peopleCoords: [
         { x: 0, y: 0 },
@@ -241,7 +257,7 @@ describe('popMonsterExecute', () => {
     const probabilitySpy = vi.spyOn(utility, 'checkProbability').mockReturnValue(true);
     const logs = popMonsterExecute('test-uuid', 1);
     expect(logs).toHaveLength(1);
-    expect(probabilitySpy).toHaveBeenCalledWith(0.125);
+    expect(probabilitySpy).toHaveBeenCalledWith(0.3472);
   });
 });
 
