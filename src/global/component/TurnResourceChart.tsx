@@ -4,6 +4,7 @@
  */
 import { TurnResourceHistory } from '@/db/kysely';
 import { calculateEmploymentStats, type EmploymentStats } from '@/global/function/employment';
+import { useState } from 'react';
 
 type HistoryRow = Omit<TurnResourceHistory, 'uuid'>;
 
@@ -11,6 +12,13 @@ type Props = {
   className?: string;
   data?: HistoryRow[];
 };
+
+const HISTORY_RANGES = [50, 100, 1000, 3000] as const;
+type HistoryRange = (typeof HISTORY_RANGES)[number];
+
+function selectHistoryRange(data: HistoryRow[], range: HistoryRange): HistoryRow[] {
+  return data.slice(-range);
+}
 
 type MetricConfig = {
   id: string;
@@ -429,17 +437,36 @@ function EmploymentChart({ data }: { data: HistoryRow[] }) {
 }
 
 export default function TurnResourceChart({ className, data }: Props) {
+  const [historyRange, setHistoryRange] = useState<HistoryRange>(100);
   if (!data || data.length === 0) return null;
 
-  const latest = data[data.length - 1];
-  const first = data[0];
+  const selectedData = selectHistoryRange(data, historyRange);
+  const latest = selectedData[selectedData.length - 1];
+  const first = selectedData[0];
 
   return (
     <div className={className}>
-      <div className="flex justify-end px-2 pb-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-2 pb-1">
+        <div className="flex flex-wrap gap-1" aria-label="表示期間">
+          {HISTORY_RANGES.map((range) => (
+            <button
+              key={range}
+              type="button"
+              onClick={() => setHistoryRange(range)}
+              aria-pressed={historyRange === range}
+              className={`cursor-pointer rounded border px-2 py-1 text-xs font-bold transition-colors ${
+                historyRange === range
+                  ? 'border-blue-600 bg-blue-600 text-white'
+                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {`${range}T`}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
-          onClick={() => downloadCsv(data)}
+          onClick={() => downloadCsv(selectedData)}
           className="cursor-pointer rounded border border-gray-300 bg-white px-2 py-1 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-100"
         >
           CSV出力
@@ -448,14 +475,14 @@ export default function TurnResourceChart({ className, data }: Props) {
 
       <div className="grid grid-cols-1 gap-2 p-2">
         {METRICS.map((metric) => (
-          <MetricCard key={metric.id} metric={metric} data={data} />
+          <MetricCard key={metric.id} metric={metric} data={selectedData} />
         ))}
       </div>
 
-      <EmploymentChart data={data} />
+      <EmploymentChart data={selectedData} />
 
       <p className="px-2 pb-2 text-xs text-gray-600">
-        {`表示範囲: ターン${first.turn}〜${latest.turn}（最新100ターン）`}
+        {`表示範囲: ターン${first.turn}〜${latest.turn}（選択${historyRange}T・${selectedData.length}件）`}
       </p>
     </div>
   );

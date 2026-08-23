@@ -782,7 +782,7 @@ async function saveTurnResourceHistory(
     .execute();
 
   // 古い履歴の一括クリーンアップ。
-  // uuidごとの100件目のturnをウィンドウ関数で一度に求めてから削除する。
+  // uuidごとの3000件目のturnをウィンドウ関数で一度に求めてから削除する。
   const uuidParams = uuids.map((uuid) => sql`${uuid}`);
   const cutoffRows = await sql<{ uuid: string; cutoff_turn: number }>`
     SELECT ranked.uuid, ranked.turn AS cutoff_turn
@@ -791,7 +791,7 @@ async function saveTurnResourceHistory(
       FROM turn_resource_history
       WHERE uuid IN (${sql.join(uuidParams)})
     ) AS ranked
-    WHERE ranked.rn = 100
+    WHERE ranked.rn = 3000
   `.execute(db);
 
   if (cutoffRows.rows.length === 0) return;

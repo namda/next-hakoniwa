@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     ])
     .where('uuid', '=', uuid)
     .orderBy('turn', 'desc')
-    .limit(100)
+    .limit(3000)
     .execute();
 
   // 取得はdesc、表示は時系列順にしたいのでレスポンス前に反転する
