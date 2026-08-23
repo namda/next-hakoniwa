@@ -269,8 +269,10 @@ export default function ManualPage() {
               </tr>
               <tr>
                 <td className="px-4 py-3 font-medium text-gray-800">火災</td>
-                <td className="px-4 py-3">{META_DATA.FIRE_RATE}%</td>
-                <td className="px-4 py-3">都市・施設が火災で被害を受けます。</td>
+                <td className="px-4 py-3">都市人口に比例</td>
+                <td className="px-4 py-3">
+                  都市HEXごとに判定され、小規模・大規模・壊滅的火災の規模に応じて人口が減少します。
+                </td>
               </tr>
               <tr>
                 <td className="px-4 py-3 font-medium text-gray-800">台風</td>
@@ -344,8 +346,7 @@ export default function ManualPage() {
           </div>
           <div>
             <p className="mb-2 text-sm leading-relaxed">
-              島の規模が大きくなると、面積の割合（{META_DATA.MONSTER_RATE}% /
-              100万坪）に応じて怪獣が上陸することがあります。
+              島の総人口に比例した確率で怪獣が上陸することがあります。100万人未満では怪獣がいない島だけ、100万人以上では既存怪獣数に関係なく出現判定されます。
               <br />
               怪獣は島内を移動しながら様々な地形を踏み荒らしてしまう脅威です。
             </p>

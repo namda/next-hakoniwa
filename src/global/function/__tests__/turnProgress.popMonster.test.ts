@@ -5,7 +5,11 @@ import { mapArrayConverter } from '@/global/function/island';
 import * as utility from '@/global/function/utility';
 import { buildIndexMap, islandDataStore } from '@/global/store/turnProgress';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { popMonsterExecute, sanitizeIslandInfoForPersistence } from '../turnProgress';
+import {
+  calculateMonsterSpawnRate,
+  popMonsterExecute,
+  sanitizeIslandInfoForPersistence,
+} from '../turnProgress';
 
 vi.mock('@/global/define/metadata', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/global/define/metadata')>();
@@ -13,6 +17,7 @@ vi.mock('@/global/define/metadata', async (importOriginal) => {
     default: {
       ...actual.default,
       MAP_SIZE: 12,
+      MONSTER_SPAWN_RATE: { BELOW_1M: 0.03, AT_1M: 0.1, PER_EXTRA_1M: 0.05 },
     },
   };
 });
@@ -189,6 +194,54 @@ describe('popMonsterExecute', () => {
     expect(expectedMonsterTypes).toContain(updated?.island_info[mapArrayConverter(0, 0)].type);
     expect(expectedMonsterTypes).toContain('king_inora');
     expect(expectedMonsterTypes).toContain('kujira');
+  });
+
+  test.each([
+    [100_000, 0.003],
+    [500_000, 0.015],
+    [1_000_000, 0.1],
+    [1_500_000, 0.125],
+    [2_000_000, 0.15],
+    [3_000_000, 0.2],
+  ])('人口%s人の出現率を%s%%/turnとして算出する', (population, expected) => {
+    expect(calculateMonsterSpawnRate(population)).toBeCloseTo(expected);
+  });
+
+  test('100万人未満では既に怪獣がいる場合に自然出現判定をしない', () => {
+    const island = createIsland({ population: 500_000, area: 100, monster: 0.03 });
+    island.island_info[mapArrayConverter(1, 1)] = {
+      x: 1,
+      y: 1,
+      type: 'sanjira',
+      landValue: 2,
+    } as islandInfo;
+    setIslandToStore(island);
+    const probabilitySpy = vi.spyOn(utility, 'checkProbability').mockReturnValue(true);
+    expect(popMonsterExecute('test-uuid', 1)).toBeUndefined();
+    expect(probabilitySpy).not.toHaveBeenCalled();
+  });
+
+  test('100万人以上では既存怪獣がいても1匹だけ自然出現する', () => {
+    const island = createIsland({
+      population: 1_500_000,
+      area: 100,
+      monster: 0.03,
+      peopleCoords: [
+        { x: 0, y: 0 },
+        { x: 0, y: 1 },
+      ],
+    });
+    island.island_info[mapArrayConverter(1, 1)] = {
+      x: 1,
+      y: 1,
+      type: 'sanjira',
+      landValue: 2,
+    } as islandInfo;
+    setIslandToStore(island);
+    const probabilitySpy = vi.spyOn(utility, 'checkProbability').mockReturnValue(true);
+    const logs = popMonsterExecute('test-uuid', 1);
+    expect(logs).toHaveLength(1);
+    expect(probabilitySpy).toHaveBeenCalledWith(0.125);
   });
 });
 

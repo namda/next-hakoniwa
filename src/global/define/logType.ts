@@ -364,11 +364,16 @@ export const logOilEnd = (
 export const logFire = (
   island: Island & Pick<User, 'island_name'>,
   x: number,
-  y: number
+  y: number,
+  scaleName: string,
+  beforePopulation: number,
+  afterPopulation: number
 ): string => {
   const mapInfo = island.island_info[mapArrayConverter(x, y)];
-
-  return `${islandName(island)}${coordinate(x, y)}の${mapName(mapInfo)}が${disaster('火災')}により壊滅しました。`;
+  if (afterPopulation <= 0) {
+    return `${islandName(island)}${coordinate(x, y)}の${mapName(mapInfo)}が${disaster(scaleName)}により壊滅し、荒地になりました。`;
+  }
+  return `${islandName(island)}${coordinate(x, y)}で${disaster(scaleName)}が発生し、都市人口が${beforePopulation.toLocaleString()}人から${afterPopulation.toLocaleString()}人に減少しました。`;
 };
 
 /**
