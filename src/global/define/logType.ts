@@ -971,6 +971,34 @@ export const logMissileNoDamage = (
   return `${islandName(fromIsland)}から${islandName(toIsland)}の${coordinate(tx, ty)}に向けて${planName(planNameStr)}が行われ、${coordinate(ix, iy)}の${mapName(fakeMapInfo)}に着弾しましたが効果はありませんでした。`;
 };
 
+export const logMissileUplift = (
+  fromIsland: Island & Pick<User, 'island_name'>,
+  toIsland: Island & Pick<User, 'island_name'>,
+  planNameStr: string,
+  tx: number,
+  ty: number,
+  ix: number,
+  iy: number,
+  mapInfo: islandInfo,
+  nextType: string
+): string => {
+  const nextName = nextType === 'shallows' ? '浅瀬' : nextType === 'ruins' ? '荒地' : '山';
+  return `${islandName(fromIsland)}から${islandName(toIsland)}の${coordinate(tx, ty)}に向けて${planName(planNameStr)}が行われ、${coordinate(ix, iy)}の${mapName(mapInfo)}は${nextName}になりました。`;
+};
+
+export const logMissileNuclear = (
+  fromIsland: Island & Pick<User, 'island_name'>,
+  toIsland: Island & Pick<User, 'island_name'>,
+  planNameStr: string,
+  tx: number,
+  ty: number,
+  ix: number,
+  iy: number,
+  affected: number
+): string => {
+  return `${islandName(fromIsland)}から${islandName(toIsland)}の${coordinate(tx, ty)}に向けて${planName(planNameStr)}が行われ、${coordinate(ix, iy)}を中心とする${affected}HEXの陸地が荒地になりました。`;
+};
+
 /**
  * ステルスミサイルが荒地に着弾し、被害を与えられなかった場合のログ
  * @param toIsland 着弾した島情報

@@ -27,8 +27,10 @@ import {
   logMissileNoTarget,
   logMissileNormal,
   logMissileNormalS,
+  logMissileNuclear,
   logMissileOut,
   logMissileOutS,
+  logMissileUplift,
   logMissileWaste,
   logMissileWasteS,
 } from '../define/logType';
@@ -47,6 +49,22 @@ import { randomIntInRange } from './utility';
 type IslandWithUser = islandInfoTurnProgress;
 
 type MissileBreakdown = Record<string, number>;
+
+export type MissileType = 'normal' | 'pp' | 'spp' | 'st' | 'ld' | 'uplift' | 'nuclear';
+type MissileWarhead = 'normal' | 'land-destruction' | 'uplift' | 'nuclear';
+
+export const MISSILE_CHARACTERISTICS: Record<
+  MissileType,
+  { errorHex: number; warhead: MissileWarhead; ignoresDefense: boolean; stealth: boolean }
+> = {
+  normal: { errorHex: 2, warhead: 'normal', ignoresDefense: false, stealth: false },
+  pp: { errorHex: 1, warhead: 'normal', ignoresDefense: false, stealth: false },
+  spp: { errorHex: 0, warhead: 'normal', ignoresDefense: true, stealth: false },
+  st: { errorHex: 2, warhead: 'normal', ignoresDefense: false, stealth: true },
+  ld: { errorHex: 2, warhead: 'land-destruction', ignoresDefense: false, stealth: false },
+  uplift: { errorHex: 2, warhead: 'uplift', ignoresDefense: false, stealth: false },
+  nuclear: { errorHex: 1, warhead: 'nuclear', ignoresDefense: false, stealth: false },
+};
 
 /** ミサイル内訳にカウントを加算する */
 const addBreakdown = (target: MissileBreakdown, type: string, count: number = 1) => {
@@ -110,7 +128,7 @@ export const executeMissile = ({
   /** 目標Y座標 */
   targetY: number;
   /** ミサイルの種類 */
-  missileType: 'normal' | 'pp' | 'st' | 'ld';
+  missileType: MissileType;
   /** ミサイルの発射回数（0の場合は資金と弾が尽きるまで） */
   times: number;
   /** 計画タイプ */
@@ -227,7 +245,7 @@ const processMissileImpacts = ({
   /** 目標Y座標 */
   targetY: number;
   /** ミサイルの種類 */
-  missileType: 'normal' | 'pp' | 'st' | 'ld';
+  missileType: MissileType;
   /** ミサイルの発射回数 */
   times: number;
   /** 計画の名称 */
@@ -248,8 +266,8 @@ const processMissileImpacts = ({
   const destroyedMaps: MissileBreakdown = {};
   const killedMonsters: MissileBreakdown = {};
 
-  // PP（ピンポイント）ミサイルは高精度なため、通常のミサイルより着弾誤差を狭める
-  const errorHex = missileType === 'pp' ? 1 : 2;
+  const characteristics = MISSILE_CHARACTERISTICS[missileType];
+  const errorHex = characteristics.errorHex;
 
   for (const base of missileBases) {
     // 基地のレベルは経験値付与によって変動するため、ループのたびに現在のレベルを取得する
@@ -300,7 +318,7 @@ const processMissileImpacts = ({
     flagShot &&
     accumulatedRefugees > 0 &&
     fromIsland.uuid !== toIsland.uuid &&
-    missileType !== 'st'
+    !characteristics.stealth
   ) {
     // 発生した難民のうち、海上を生き延びて無事に他島へ漂着できるのは半数のみとする仕様
     const validRefugees = Math.floor(accumulatedRefugees / 2);
@@ -383,7 +401,7 @@ const processSingleImpact = ({
   /** 実際の着弾座標 */
   impactPoint: { x: number; y: number };
   /** ミサイルの種類 */
-  missileType: 'normal' | 'pp' | 'st' | 'ld';
+  missileType: MissileType;
   /** 計画の名称 */
   planName: string;
   /** 発射した基地の情報 */
@@ -396,7 +414,8 @@ const processSingleImpact = ({
   destroyedMaps: MissileBreakdown;
   killedMonsters: MissileBreakdown;
 } => {
-  const isStealth = missileType === 'st';
+  const characteristics = MISSILE_CHARACTERISTICS[missileType];
+  const isStealth = characteristics.stealth;
   const baseLog = getBaseLog(turn, fromIsland, toIsland);
 
   if (isOpenSea(impactPoint.x, impactPoint.y)) {
@@ -414,7 +433,10 @@ const processSingleImpact = ({
 
   const impactMapInfo = toIsland.island_info[mapArrayConverter(impactPoint.x, impactPoint.y)];
 
-  if (checkIntercepted(toIsland, impactPoint.x, impactPoint.y, impactMapInfo.type)) {
+  if (
+    !characteristics.ignoresDefense &&
+    checkIntercepted(toIsland, impactPoint.x, impactPoint.y, impactMapInfo.type)
+  ) {
     const logCaughtS = logMissileCaughtS(toIsland, impactPoint.x, impactPoint.y);
     const logCaught = logMissileCaught(
       fromIsland,
@@ -435,7 +457,10 @@ const processSingleImpact = ({
     };
   }
 
-  if (checkNoDamage(missileType, impactMapInfo.type)) {
+  if (
+    (characteristics.warhead === 'normal' || characteristics.warhead === 'land-destruction') &&
+    checkNoDamage(characteristics.warhead, impactMapInfo.type)
+  ) {
     // 潜水艦基地は攻撃を弾いた際、単なる「海」としてログに記録し、他島からその存在を秘匿する
     const fakeMapInfo =
       impactMapInfo.type === 'submarine_missile'
@@ -462,7 +487,7 @@ const processSingleImpact = ({
     };
   }
 
-  if (missileType === 'ld') {
+  if (characteristics.warhead === 'land-destruction') {
     return applyLandDestructionMissile({
       turn,
       fromIsland,
@@ -474,8 +499,9 @@ const processSingleImpact = ({
       impactMapInfo,
       base,
     });
-  } else {
-    return applyNormalMissile({
+  }
+  if (characteristics.warhead === 'uplift') {
+    return applyUpliftMissile({
       turn,
       fromIsland,
       toIsland,
@@ -484,10 +510,33 @@ const processSingleImpact = ({
       impactPoint,
       planName,
       impactMapInfo,
-      missileType,
       base,
     });
   }
+  if (characteristics.warhead === 'nuclear') {
+    return applyNuclearMissile({
+      turn,
+      fromIsland,
+      toIsland,
+      targetX,
+      targetY,
+      impactPoint,
+      planName,
+      base,
+    });
+  }
+  return applyNormalMissile({
+    turn,
+    fromIsland,
+    toIsland,
+    targetX,
+    targetY,
+    impactPoint,
+    planName,
+    impactMapInfo,
+    missileType,
+    base,
+  });
 };
 
 /**
@@ -510,12 +559,198 @@ const checkIntercepted = (island: IslandWithUser, ix: number, iy: number, type: 
  * @param type 着弾地点の地形タイプ
  * @returns 被害なし判定結果（真偽値）
  */
-const checkNoDamage = (missileType: string, type: string) => {
+const checkNoDamage = (warhead: MissileWarhead, type: string) => {
   return (
     type === 'sea' ||
-    (missileType !== 'ld' &&
+    (warhead !== 'land-destruction' &&
       (type === 'shallows' || type === 'submarine_missile' || type === 'mountain'))
   );
+};
+
+const applyUpliftMissile = ({
+  turn,
+  fromIsland,
+  toIsland,
+  targetX,
+  targetY,
+  impactPoint,
+  planName,
+  impactMapInfo,
+  base,
+}: {
+  turn: number;
+  fromIsland: IslandWithUser;
+  toIsland: IslandWithUser;
+  targetX: number;
+  targetY: number;
+  impactPoint: { x: number; y: number };
+  planName: string;
+  impactMapInfo: islandInfo;
+  base: { x: number; y: number };
+}) => {
+  const baseLog = getBaseLog(turn, fromIsland, toIsland);
+  const impactBaseLand = getMapDefine(impactMapInfo.type).baseLand;
+  const isMonster = ['monster', 'sanjira', 'kujira'].includes(impactBaseLand);
+  if (isMonster && isMonsterHardened(impactMapInfo.type, turn)) {
+    const log = logMissileMonNoDamage(
+      fromIsland,
+      toIsland,
+      planName,
+      targetX,
+      targetY,
+      impactPoint.x,
+      impactPoint.y,
+      impactMapInfo
+    );
+    return {
+      logs: [{ ...baseLog, secret_log: log, log }],
+      refugees: 0,
+      monsterKills: 0,
+      cityKills: 0,
+      destroyedMaps: {},
+      killedMonsters: {},
+    };
+  }
+
+  const seaTypes = ['sea', 'submarine_missile', 'oil_field'];
+  const nextType = seaTypes.includes(impactMapInfo.type)
+    ? 'shallows'
+    : impactMapInfo.type === 'shallows'
+      ? 'ruins'
+      : 'mountain';
+  const cityKills = CITY_FACILITY_TYPES.has(impactMapInfo.type) ? 1 : 0;
+  const monsterKills = isMonster ? 1 : 0;
+  const destroyedMaps: MissileBreakdown = {};
+  const killedMonsters: MissileBreakdown = {};
+  let bounty = 0;
+  if (cityKills) addBreakdown(destroyedMaps, impactMapInfo.type);
+  if (monsterKills) {
+    addBreakdown(killedMonsters, impactMapInfo.type);
+    bounty = grantMonsterRewards(fromIsland, toIsland, base, impactMapInfo);
+  }
+  if (impactMapInfo.type === 'people') {
+    grantBaseExperience(fromIsland, base.x, base.y, impactMapInfo.landValue);
+  }
+  changeMapData(toIsland, impactPoint.x, impactPoint.y, nextType, { type: 'ins', value: 0 });
+  const log = logMissileUplift(
+    fromIsland,
+    toIsland,
+    planName,
+    targetX,
+    targetY,
+    impactPoint.x,
+    impactPoint.y,
+    impactMapInfo,
+    nextType
+  );
+  const logs = [{ ...baseLog, secret_log: log, log }];
+  if (bounty > 0) {
+    const rewardLog = logMissileMonMoney(impactMapInfo, bounty);
+    logs.push({ ...baseLog, secret_log: rewardLog, log: rewardLog });
+  }
+  return {
+    logs,
+    refugees: impactMapInfo.type === 'people' ? impactMapInfo.landValue : 0,
+    monsterKills,
+    cityKills,
+    destroyedMaps,
+    killedMonsters,
+  };
+};
+
+const applyNuclearMissile = ({
+  turn,
+  fromIsland,
+  toIsland,
+  targetX,
+  targetY,
+  impactPoint,
+  planName,
+  base,
+}: {
+  turn: number;
+  fromIsland: IslandWithUser;
+  toIsland: IslandWithUser;
+  targetX: number;
+  targetY: number;
+  impactPoint: { x: number; y: number };
+  planName: string;
+  base: { x: number; y: number };
+}) => {
+  const baseLog = getBaseLog(turn, fromIsland, toIsland);
+  const logs: TurnLog[] = [];
+  const destroyedMaps: MissileBreakdown = {};
+  const killedMonsters: MissileBreakdown = {};
+  let refugees = 0;
+  let monsterKills = 0;
+  let cityKills = 0;
+  let affected = 0;
+
+  for (const point of getMapAround(impactPoint.x, impactPoint.y, 2)) {
+    if (isOpenSea(point.x, point.y)) continue;
+    const mapInfo = toIsland.island_info[mapArrayConverter(point.x, point.y)];
+    if (['sea', 'shallows', 'submarine_missile', 'oil_field'].includes(mapInfo.type)) continue;
+    const baseLand = getMapDefine(mapInfo.type).baseLand;
+    const isMonster = ['monster', 'sanjira', 'kujira'].includes(baseLand);
+    if (isMonster && isMonsterHardened(mapInfo.type, turn)) {
+      const log = logMissileMonNoDamage(
+        fromIsland,
+        toIsland,
+        planName,
+        targetX,
+        targetY,
+        point.x,
+        point.y,
+        mapInfo
+      );
+      logs.push({ ...baseLog, secret_log: log, log });
+      continue;
+    }
+    if (isMonster) {
+      monsterKills++;
+      addBreakdown(killedMonsters, mapInfo.type);
+      const bounty = grantMonsterRewards(fromIsland, toIsland, base, mapInfo);
+      if (bounty > 0) {
+        const rewardLog = logMissileMonMoney(mapInfo, bounty);
+        logs.push({ ...baseLog, secret_log: rewardLog, log: rewardLog });
+      }
+    }
+    if (CITY_FACILITY_TYPES.has(mapInfo.type)) {
+      cityKills++;
+      addBreakdown(destroyedMaps, mapInfo.type);
+    }
+    if (mapInfo.type === 'people') {
+      refugees += mapInfo.landValue;
+      grantBaseExperience(fromIsland, base.x, base.y, mapInfo.landValue);
+    }
+    changeMapData(toIsland, point.x, point.y, 'ruins', { type: 'ins', value: 0 });
+    affected++;
+  }
+
+  const log = logMissileNuclear(
+    fromIsland,
+    toIsland,
+    planName,
+    targetX,
+    targetY,
+    impactPoint.x,
+    impactPoint.y,
+    affected
+  );
+  logs.unshift({ ...baseLog, secret_log: log, log });
+  return { logs, refugees, monsterKills, cityKills, destroyedMaps, killedMonsters };
+};
+
+const grantMonsterRewards = (
+  fromIsland: IslandWithUser,
+  toIsland: IslandWithUser,
+  base: { x: number; y: number },
+  mapInfo: islandInfo
+) => {
+  const { exp, bounty } = getMapDefine(mapInfo.type);
+  grantBaseExperience(fromIsland, base.x, base.y, (exp ?? 0) * 20);
+  if (bounty) toIsland.money += bounty;
+  return bounty ?? 0;
 };
 
 /**
@@ -694,11 +929,11 @@ const applyNormalMissile = ({
   /** 着弾地点の地形情報 */
   impactMapInfo: islandInfo;
   /** ミサイルの種類 */
-  missileType: 'normal' | 'pp' | 'st';
+  missileType: MissileType;
   /** 発射した基地の座標 */
   base: { x: number; y: number };
 }) => {
-  const isStealth = missileType === 'st';
+  const isStealth = MISSILE_CHARACTERISTICS[missileType].stealth;
   const baseLog = getBaseLog(turn, fromIsland, toIsland);
   const impactBaseLand = getMapDefine(impactMapInfo.type).baseLand;
   let refugees = 0;
