@@ -4,10 +4,6 @@
 
 ## セットアップ
 
-本番/DEV1の初期設定と再設定は、対話端末から `npm run setup` を実行します。
-既存secretを維持し、確定前にマスク済み差分を表示してから一意なbackupを作成します。
-setupはbuild、migration、deployを自動実行しません。
-
 ### 0. mise で開発ツールのバージョンを揃える
 
 このリポジトリは `mise.toml` で Node.js / npm バージョンを管理します。
@@ -31,12 +27,44 @@ npm install
 npm run lefthook
 ```
 
-### 3. 環境変数の設定
+### 3. 本番・DEV1の対話式設定
 
-`.env` ファイルを参考に、必要な環境変数を設定します。
+依存パッケージをインストールしたリポジトリのdirectoryで、対話端末から実行します。
+
+```bash
+npm run setup
+```
+
+画面の案内に従い、最初にターン更新cronとマップサイズを決め、その後に災害、怪獣、火災、資源、URL、DB、認証設定を確認します。
+
+- Enter: 現在値を維持
+- 値を入力: 設定を変更
+- `undo` または `u`: 1つ前の項目へ戻る
+- Ctrl+C: ファイルを変更せず中止
+
+初回構築ではDB passwordとPasskey pepperを安全な乱数で生成します。既存環境で再実行した場合は、既存DB password、Passkey pepper、Moderator初期bootstrap passwordを変更しません。secretの値は確認画面や差分へ表示されません。
+
+確定すると、公開可能なゲーム設定を `.env.production`、環境固有値とsecretを `.env.production.local` へ保存します。既存ファイルは書き換え前に `.setup-backups/` へbackupされます。
+
+> [!IMPORTANT]
+> `npm run setup` は対話式TTY専用です。build、DB migration、deployは自動実行しません。設定保存後に表示される環境別の1ライナーを実行して反映してください。
+
+DEV1では次の形式のコマンドが表示されます。
+
+```bash
+cd ~/next-hakoniwa-dev1 && docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps
+```
+
+本番ではdirectoryが `~/next-hakoniwa` になります。本番への反映は、運用手順に従って `origin/main` に取り込まれた変更だけを対象にしてください。
+
+設定ファイルの役割や全項目の詳細は [環境変数一覧](./docs/environment_variables.md) を参照してください。
+
+### 4. 開発環境の環境変数設定
+
+ローカル開発では `.env.example` を参考に、必要な開発用環境変数を設定します。実環境用secretを `.env.example` やGit管理対象ファイルへ保存しないでください。
 詳細については [環境変数一覧](./docs/environment_variables.md) を参照してください。
 
-### 4. データベースの初期化
+### 5. データベースの初期化
 
 ```bash
 npm run db:init
@@ -50,6 +78,7 @@ npm run db:init
 | `npm run build`        | 通常の本番ビルド                                      |
 | `npm run build:mini`   | 2CPU/2GB環境想定のビルド                              |
 | `npm run build:docker` | ホスト側のビルドが難しい場合は、Docker 内でビルド実行 |
+| `npm run setup`        | 本番・DEV1の初期設定または安全な再設定                |
 | `npm run start`        | 本番サーバーの起動                                    |
 | `npm run test`         | ユニットテストの実行                                  |
 | `npm run lint`         | ESLint / Stylelint / TypeScript の静的解析            |
