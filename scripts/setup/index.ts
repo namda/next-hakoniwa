@@ -36,6 +36,7 @@ const LOCAL_KEYS = new Set([
   'MYSQL_USER',
   'MYSQL_PASSWORD',
   'MYSQL_ROOT_PASSWORD',
+  'MYSQL_HOST_PORT',
   'DB_CONNECTION_STRING',
   'DOCKER_DB_CONNECTION_STRING',
   'PASSKEY_FP_PEPPER',
@@ -141,20 +142,54 @@ export const createSpinner = (message: string, output = stdout) => {
   };
 };
 
+export const shellQuote = (value: string) => `'${value.replaceAll("'", `'"'"'`)}'`;
+
 export const deployCommandFor = (directory: string) =>
-  `cd ${directory} && docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps`;
+  `cd ${shellQuote(directory)} && docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps`;
 
 const numberValue = (values: Map<string, string>, key: string) => Number(values.get(key));
 const masked = (value?: string) => (value ? '[設定済み]' : '[未設定]');
 const safeUrl = (value?: string) =>
   value?.replace(/:\/\/([^:/]+):[^@]*@/, '://$1:***@') ?? '[未設定]';
 
+export type ComposeContainer = { id: string; labels: Record<string, string> };
+
+export const selectComposeMysqlContainer = (
+  containers: ComposeContainer[],
+  repositoryRoot: string
+) => {
+  const expectedRoot = resolve(repositoryRoot);
+  return (
+    containers.find(({ labels }) => {
+      if (labels['com.docker.compose.service'] !== 'mysql') return false;
+      const workingDir = labels['com.docker.compose.project.working_dir'];
+      if (workingDir && resolve(workingDir) === expectedRoot) return true;
+      const configFiles = labels['com.docker.compose.project.config_files']?.split(',') ?? [];
+      return configFiles.some((file) => resolve(file).startsWith(`${expectedRoot}/`));
+    })?.id ?? ''
+  );
+};
+
 export const composeMysqlContainerId = (repositoryRoot: string) => {
-  const result = spawnSync('docker', ['compose', 'ps', '-a', '-q', 'mysql'], {
-    cwd: repositoryRoot,
-    encoding: 'utf8',
-  });
-  return result.status === 0 ? result.stdout.trim() : '';
+  const listed = spawnSync(
+    'docker',
+    ['ps', '-a', '--filter', 'label=com.docker.compose.service=mysql', '--format', '{{.ID}}'],
+    { encoding: 'utf8' }
+  );
+  if (listed.status !== 0) return '';
+  const containers: ComposeContainer[] = [];
+  for (const id of listed.stdout.split(/\r?\n/).filter(Boolean)) {
+    const inspected = spawnSync('docker', ['inspect', '--format', '{{json .Config.Labels}}', id], {
+      encoding: 'utf8',
+    });
+    if (inspected.status !== 0) continue;
+    try {
+      containers.push({ id, labels: JSON.parse(inspected.stdout) });
+    } catch {
+      // Ignore containers whose labels cannot be safely parsed.
+    }
+  }
+  return selectComposeMysqlContainer(containers, repositoryRoot);
 };
 
 const targetMysqlEnv = (repositoryRoot: string) => {
@@ -168,6 +203,32 @@ const targetMysqlEnv = (repositoryRoot: string) => {
   if (inspected.status !== 0) return new Map<string, string>();
   return parseEnv(inspected.stdout).values;
 };
+
+const targetMysqlPublishedPort = (containerId: string) => {
+  if (!containerId) return undefined;
+  const inspected = spawnSync(
+    'docker',
+    ['inspect', '--format', '{{json (index .NetworkSettings.Ports "3306/tcp")}}', containerId],
+    { encoding: 'utf8' }
+  );
+  if (inspected.status !== 0) return undefined;
+  try {
+    const bindings = JSON.parse(inspected.stdout) as { HostPort?: string }[] | null;
+    return bindings?.[0]?.HostPort;
+  } catch {
+    return undefined;
+  }
+};
+
+export const mysqlConnectionStrings = (
+  database: string,
+  user: string,
+  password: string,
+  hostPort = 13306
+) => ({
+  host: `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@127.0.0.1:${hostPort}/${encodeURIComponent(database)}`,
+  docker: `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@mysql:3306/${encodeURIComponent(database)}`,
+});
 
 export const originDefaults = (origin: string) => {
   const hostname = new URL(origin).hostname;
@@ -272,6 +333,21 @@ const main = async () => {
       } catch {
         // Missing/invalid legacy credentials are handled by the fail-closed check.
       }
+    }
+    if (existing && !current.get('MYSQL_HOST_PORT')) {
+      try {
+        const connection = new URL(current.get('DB_CONNECTION_STRING') ?? '');
+        if (
+          (connection.hostname === '127.0.0.1' || connection.hostname === 'localhost') &&
+          connection.port
+        )
+          current.set('MYSQL_HOST_PORT', connection.port);
+      } catch {
+        // A published Compose port is used below when the URL cannot provide one.
+      }
+      const publishedPort = targetMysqlPublishedPort(mysqlContainerId);
+      if (!current.get('MYSQL_HOST_PORT') && publishedPort)
+        current.set('MYSQL_HOST_PORT', publishedPort);
     }
     if (existing) {
       const missing = ['MYSQL_PASSWORD', 'MYSQL_ROOT_PASSWORD', 'PASSKEY_FP_PEPPER'].filter(
@@ -656,7 +732,7 @@ const main = async () => {
           const hostPort = await askNumber(
             'MYSQL_HOST_PORT',
             'host側port',
-            13306,
+            numberValue(values, 'MYSQL_HOST_PORT') || 13306,
             (v) => Number.isInteger(v) && v > 0 && v <= 65535
           );
           const moderatorId = await ask(
@@ -675,15 +751,11 @@ const main = async () => {
           values.set('MYSQL_USER', dbUser);
           values.set('MYSQL_PASSWORD', dbPassword);
           values.set('MYSQL_ROOT_PASSWORD', generatedSecrets!.rootPassword);
+          values.set('MYSQL_HOST_PORT', String(hostPort));
           values.set('PASSKEY_FP_PEPPER', generatedSecrets!.pepper);
-          values.set(
-            'DB_CONNECTION_STRING',
-            `mysql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@127.0.0.1:${hostPort}/${encodeURIComponent(dbName)}`
-          );
-          values.set(
-            'DOCKER_DB_CONNECTION_STRING',
-            `mysql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@mysql:3306/${encodeURIComponent(dbName)}`
-          );
+          const connections = mysqlConnectionStrings(dbName, dbUser, dbPassword, hostPort);
+          values.set('DB_CONNECTION_STRING', connections.host);
+          values.set('DOCKER_DB_CONNECTION_STRING', connections.docker);
           values.set('MODERATOR_INITIAL_ID', moderatorId);
           values.set('MODERATOR_INITIAL_USER_NAME', moderatorName);
           const password = await askSecret('MODERATOR_INITIAL_PASSWORD', 'password');

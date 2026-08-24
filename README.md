@@ -117,16 +117,17 @@ npm run storybook
 
 [http://localhost:6006](http://localhost:6006) をブラウザで開くと確認できます。
 
-## Docker検証環境の起動（推奨）
+## Docker検証環境の起動
 
 Passkey（WebAuthn）を用いた認証や、自己署名証明書によるHTTPS通信などのテストを行うには、本番相当のコンテナ環境を使用します。
 
-詳細な手順やOriginURLの設定については、[Docker検証環境手順](./docs/docker_verification.md) を参照してください。
+先に `npm run setup` を実行し、完了時に表示された1ライナーでbuild・起動してください。手動で実行する場合は、現在のCompose仕様に合わせてlocal env fileを明示します。
 
 ```bash
-docker compose build app
-docker compose up -d
+docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps
 ```
+
+Origin URLなどの詳細は [Docker検証環境手順](./docs/docker_verification.md) を参照してください。
 
 ## Dockerでビルドのみ実行する
 

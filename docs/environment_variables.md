@@ -64,6 +64,7 @@ Cronerの実発火から算出し、別のenvへ保存しません。global even
 | `MYSQL_USER`                  | `hakoniwa_user`                                  | MySQL application user                                    |
 | `MYSQL_PASSWORD`              | _(ランダムな文字列)_                             | MySQL application password。`.env.production.local`に保存 |
 | `MYSQL_ROOT_PASSWORD`         | _(別のランダムな文字列)_                         | MySQL root password。`.env.production.local`に保存        |
+| `MYSQL_HOST_PORT`             | `13306`                                          | hostへ公開するMySQL port。Composeとhost側URLで共通使用    |
 | `DB_CONNECTION_STRING`        | `mysql://user:password@127.0.0.1:13306/hakoniwa` | host側setup・診断用URL。portは環境に合わせる              |
 | `DOCKER_DB_CONNECTION_STRING` | `mysql://user:password@mysql:3306/hakoniwa`      | app containerからMySQL serviceへ接続するURL               |
 
@@ -190,7 +191,7 @@ DB、Passkey、Moderator、Origin等はsetupで管理します。S3詳細、火�
 
 ## 自然災害・イベント設定
 
-各種イベントの発生確率は「毎ターンの発生確率（%）」です。
+各イベント設定の判定単位は項目ごとに異なります。詳細は各項目の説明を参照してください。
 
 | 変数名                                                   | 例         | 説明                                                    |
 | -------------------------------------------------------- | ---------- | ------------------------------------------------------- |
