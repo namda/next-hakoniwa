@@ -2,7 +2,7 @@
 
 [Next.js](https://nextjs.org) で実装された箱庭諸島のWebアプリケーションです。
 
-## セットアップ
+## Production / Docker
 
 ### 0. mise で開発ツールのバージョンを揃える
 
@@ -18,16 +18,7 @@ mise install
 npm install
 ```
 
-### 2. lefthook のインストール
-
-このリポジトリでは Git Hook 管理に lefthook を使用します。
-`npm install` 後に一度だけ以下を実行してください。
-
-```bash
-npm run lefthook
-```
-
-### 3. 本番・DEV1の対話式設定
+### 2. 本番・検証環境の対話式設定
 
 依存パッケージをインストールしたリポジトリのdirectoryで、対話端末から実行します。
 
@@ -55,19 +46,33 @@ npm run setup
 docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps
 ```
 
-実際にはsetup完了時に、実行環境と現在のリポジトリdirectoryに対応した1ライナーが表示されます。本番への反映は、各環境の運用手順に従い、deploy対象として承認された変更だけを使用してください。
+実際にはsetup完了時に、現在のリポジトリdirectoryに対応した1ライナーが表示されます。`app` 起動時にはDB migrationが実行されます。
 
 設定ファイルの役割や全項目の詳細は [環境変数一覧](./docs/environment_variables.md) を参照してください。
 
-### 4. 開発環境の環境変数設定
+## Local development
+
+### 1. 開発環境の環境変数設定
 
 ローカル開発では `.env.example` を参考に、必要な開発用環境変数を設定します。実環境用secretを `.env.example` やGit管理対象ファイルへ保存しないでください。
 詳細については [環境変数一覧](./docs/environment_variables.md) を参照してください。
 
-### 5. データベースの初期化
+### 2. SQLite開発DBの初期化
 
 ```bash
 npm run db:init
+```
+
+### 3. Git Hookの設定（任意）
+
+```bash
+npm run lefthook
+```
+
+### 4. 開発サーバーの起動
+
+```bash
+npm run dev
 ```
 
 ## コマンド一覧
@@ -78,7 +83,7 @@ npm run db:init
 | `npm run build`        | 通常の本番ビルド                                      |
 | `npm run build:mini`   | 2CPU/2GB環境想定のビルド                              |
 | `npm run build:docker` | ホスト側のビルドが難しい場合は、Docker 内でビルド実行 |
-| `npm run setup`        | 本番・DEV1の初期設定または安全な再設定                |
+| `npm run setup`        | 本番・検証環境の初期設定または安全な再設定            |
 | `npm run start`        | 本番サーバーの起動                                    |
 | `npm run test`         | ユニットテストの実行                                  |
 | `npm run lint`         | ESLint / Stylelint / TypeScript の静的解析            |

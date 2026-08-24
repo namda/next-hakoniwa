@@ -56,7 +56,9 @@ export const updateEnv = (
 };
 
 export const loadProductionEnv = async (root: string) => {
-  const files = ['.env', '.env.local', '.env.production', '.env.production.local'];
+  // Production setup must not treat development-only .env/.env.local values as
+  // current production state.
+  const files = ['.env.production', '.env.production.local'];
   const result = new Map<string, string>();
   for (const file of files) {
     try {

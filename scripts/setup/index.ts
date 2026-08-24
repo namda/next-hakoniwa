@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { stdin, stdout } from 'node:process';
 import { createInterface } from 'node:readline/promises';
@@ -74,6 +74,13 @@ const DAILY_KEYS = [
   'NEXT_PUBLIC_HUGE_METEORITE_RATE',
   'NEXT_PUBLIC_ERUPTION_RATE',
 ] as const;
+export const PERCENT_SETTING_KEYS = [
+  'NEXT_PUBLIC_BURIED_TREASURE_RATE',
+  'NEXT_PUBLIC_OIL_FIELD_RATE',
+  'NEXT_PUBLIC_OIL_EXHAUSTION_RATE',
+  'NEXT_PUBLIC_CONTINUOUS_METEORITE_RATE',
+  'NEXT_PUBLIC_VILLAGE_APPEARANCE_RATE',
+] as const;
 
 const SETTING_NAMES: Record<string, string> = {
   NEXT_PUBLIC_TURN_TIMEZONE: 'ターンタイムゾーン',
@@ -102,6 +109,14 @@ const SETTING_NAMES: Record<string, string> = {
   MYSQL_DATABASE: 'MySQLデータベース名',
   MYSQL_USER: 'MySQLユーザー名',
   MODERATOR_INITIAL_PASSWORD: 'Moderator初期bootstrap password',
+  MODERATOR_INITIAL_ID: 'Moderator初期ID',
+  MODERATOR_INITIAL_USER_NAME: 'Moderator初期表示名',
+  MYSQL_HOST_PORT: 'ホスト側MySQLポート',
+  NEXT_PUBLIC_BURIED_TREASURE_RATE: '埋蔵金発見率',
+  NEXT_PUBLIC_OIL_FIELD_RATE: '油田発見率',
+  NEXT_PUBLIC_OIL_EXHAUSTION_RATE: '油田枯渇率',
+  NEXT_PUBLIC_CONTINUOUS_METEORITE_RATE: '連続隕石率',
+  NEXT_PUBLIC_VILLAGE_APPEARANCE_RATE: '村出現率',
 };
 
 class UndoRequested extends Error {}
@@ -134,31 +149,29 @@ const masked = (value?: string) => (value ? '[設定済み]' : '[未設定]');
 const safeUrl = (value?: string) =>
   value?.replace(/:\/\/([^:/]+):[^@]*@/, '://$1:***@') ?? '[未設定]';
 
-const dockerVolumeExists = () => {
-  const result = spawnSync('docker', ['volume', 'ls', '--format', '{{.Name}}'], {
+export const composeMysqlContainerId = (repositoryRoot: string) => {
+  const result = spawnSync('docker', ['compose', 'ps', '-a', '-q', 'mysql'], {
+    cwd: repositoryRoot,
     encoding: 'utf8',
   });
-  return (
-    result.status === 0 && result.stdout.split(/\r?\n/).some((name) => /(?:^|_)db_data$/.test(name))
-  );
+  return result.status === 0 ? result.stdout.trim() : '';
 };
 
-const runningMysqlEnv = () => {
-  const listed = spawnSync('docker', ['ps', '--format', '{{.Names}}'], { encoding: 'utf8' });
-  if (listed.status !== 0) return new Map<string, string>();
-  const mysqlNames = listed.stdout.split(/\r?\n/).filter((entry) => /mysql/i.test(entry));
-  const name =
-    (root.includes('dev1')
-      ? mysqlNames.find((entry) => /dev1/i.test(entry))
-      : mysqlNames.find((entry) => !/dev1/i.test(entry))) ?? mysqlNames[0];
-  if (!name) return new Map<string, string>();
+const targetMysqlEnv = (repositoryRoot: string) => {
+  const id = composeMysqlContainerId(repositoryRoot);
+  if (!id) return new Map<string, string>();
   const inspected = spawnSync(
     'docker',
-    ['inspect', '--format', '{{range .Config.Env}}{{println .}}{{end}}', name],
+    ['inspect', '--format', '{{range .Config.Env}}{{println .}}{{end}}', id],
     { encoding: 'utf8' }
   );
   if (inspected.status !== 0) return new Map<string, string>();
   return parseEnv(inspected.stdout).values;
+};
+
+export const originDefaults = (origin: string) => {
+  const hostname = new URL(origin).hostname;
+  return { rpId: hostname, issuer: hostname };
 };
 
 const islandCount = async (connectionString?: string): Promise<number | null> => {
@@ -225,15 +238,16 @@ const main = async () => {
     const example = parseEnv(await readFile(resolve(root, '.env.example'), 'utf8')).values;
     const current = await loadProductionEnv(root);
     const hasLocal = existsSync(resolve(root, '.env.production.local'));
-    const hasVolume = dockerVolumeExists();
+    const mysqlContainerId = composeMysqlContainerId(root);
+    const hasTargetMysql = Boolean(mysqlContainerId);
     const existing =
       hasLocal ||
-      hasVolume ||
+      hasTargetMysql ||
       Boolean(current.get('DB_CONNECTION_STRING') || current.get('PASSKEY_FP_PEPPER'));
     // One-time migration from the repository's former Compose credentials. The
     // application URL is authoritative for user/password/database; the legacy root
     // candidate is only accepted for an already-existing legacy volume.
-    if (existing && hasVolume && current.get('DB_CONNECTION_STRING')) {
+    if (existing && hasTargetMysql && current.get('DB_CONNECTION_STRING')) {
       try {
         const url = new URL(current.get('DB_CONNECTION_STRING')!);
         if (url.protocol === 'mysql:') {
@@ -246,18 +260,13 @@ const main = async () => {
             'MYSQL_PASSWORD',
             current.get('MYSQL_PASSWORD') ?? decodeURIComponent(url.password)
           );
-          const containerEnv = runningMysqlEnv();
+          const containerEnv = targetMysqlEnv(root);
           if (!current.get('MYSQL_ROOT_PASSWORD') && containerEnv.get('MYSQL_ROOT_PASSWORD'))
             current.set('MYSQL_ROOT_PASSWORD', containerEnv.get('MYSQL_ROOT_PASSWORD')!);
           current.set(
             'DOCKER_DB_CONNECTION_STRING',
             current.get('DOCKER_DB_CONNECTION_STRING') ??
               `mysql://${encodeURIComponent(decodeURIComponent(url.username))}:${encodeURIComponent(decodeURIComponent(url.password))}@mysql:3306/${encodeURIComponent(decodeURIComponent(url.pathname.slice(1)))}`
-          );
-          const hostPort = root.includes('dev1') ? 13307 : 13306;
-          current.set(
-            'DB_CONNECTION_STRING',
-            `mysql://${encodeURIComponent(decodeURIComponent(url.username))}:${encodeURIComponent(decodeURIComponent(url.password))}@127.0.0.1:${hostPort}/${encodeURIComponent(decodeURIComponent(url.pathname.slice(1)))}`
           );
         }
       } catch {
@@ -270,13 +279,41 @@ const main = async () => {
       );
       if (missing.length)
         throw new Error(
-          `既存環境の秘密設定を安全に特定できません (${missing.join(', ')}). 何も変更しません。`
+          `旧構成を含む既存環境のcredentialを安全に自動移行できません (${missing.join(', ')})。ファイルは変更していません。既存credentialを確認して .env.production.local へ手動移行した後、setupを再実行してください。`
         );
     }
 
-    const baseValues = new Map(example);
-    for (const [key, value] of current) baseValues.set(key, value);
+    const baseValues = existing ? new Map(current) : new Map(example);
+    if (!existing) {
+      for (const key of [
+        'NEXT_PUBLIC_RP_ID',
+        'ISSUER',
+        'PASSKEY_FP_PEPPER',
+        'MODERATOR_INITIAL_PASSWORD',
+        'MYSQL_PASSWORD',
+        'MYSQL_ROOT_PASSWORD',
+        'DB_CONNECTION_STRING',
+        'DOCKER_DB_CONNECTION_STRING',
+        'LOG_BASE_DIR',
+        'LOG_TRANSPORT_MODE',
+        'LOG_S3_BUCKET',
+        'LOG_S3_REGION',
+        'LOG_S3_ENDPOINT',
+        'LOG_S3_ACCESS_KEY_ID',
+        'LOG_S3_SECRET_ACCESS_KEY',
+        'LOG_S3_KEY_PREFIX',
+        'LOG_S3_FORCE_PATH_STYLE',
+      ])
+        baseValues.delete(key);
+    }
     let values = new Map(baseValues);
+    const generatedSecrets = existing
+      ? undefined
+      : {
+          dbPassword: randomBytes(32).toString('base64url'),
+          rootPassword: randomBytes(32).toString('base64url'),
+          pepper: randomBytes(32).toString('base64url'),
+        };
     const oldCron = values.get('NEXT_PUBLIC_TURN_CRON')!;
     const oldZone = values.get('NEXT_PUBLIC_TURN_TIMEZONE')!;
     const oldAnalysis = analyzeCron(oldCron, oldZone);
@@ -369,7 +406,7 @@ const main = async () => {
           cron === oldCron && zone === oldZone ? oldAnalysis : analyzeCron(cron, zone);
         if (!analysis.fixed || !analysis.turnsPerDay)
           throw new Error(
-            `cronは有効ですが日次発火数が一定かつ1以上ではありません (${analysis.counts.join(', ')}).`
+            `このsetupでは、1日あたりのターン数が一定になるcronのみ対応しています (${analysis.counts.join(', ')})。設定は保存していません。`
           );
         values.set('NEXT_PUBLIC_TURN_TIMEZONE', zone);
         values.set('NEXT_PUBLIC_TURN_CRON', cron);
@@ -537,6 +574,26 @@ const main = async () => {
         )
           throw new Error('Fire weights must be non-negative integers with a positive total');
 
+        const percentDetails: Record<(typeof PERCENT_SETTING_KEYS)[number], string> = {
+          NEXT_PUBLIC_BURIED_TREASURE_RATE: '整地1回あたりの発見率 (%)',
+          NEXT_PUBLIC_OIL_FIELD_RATE: '海掘削1回あたりの発見率 (%)',
+          NEXT_PUBLIC_OIL_EXHAUSTION_RATE: '油田1HEX・1turnあたりの枯渇率 (%)',
+          NEXT_PUBLIC_CONTINUOUS_METEORITE_RATE: '隕石発生後の連続落下率 (%)',
+          NEXT_PUBLIC_VILLAGE_APPEARANCE_RATE: '対象HEX・1turnあたりの出現率 (%)',
+        };
+        for (const key of PERCENT_SETTING_KEYS)
+          values.set(
+            key,
+            serializeNumber(
+              await askNumber(
+                key,
+                percentDetails[key],
+                numberValue(values, key),
+                (v) => v >= 0 && v <= 100
+              )
+            )
+          );
+
         for (const key of [
           'NEXT_PUBLIC_INIT_MONEY',
           'NEXT_PUBLIC_MAX_MONEY',
@@ -572,17 +629,18 @@ const main = async () => {
         );
         values.set('NEXT_PUBLIC_ORIGIN_URL', origin);
         values.set('DOCKER_NEXT_PUBLIC_ORIGIN_URL', origin);
+        const derivedOrigin = originDefaults(origin);
         values.set(
           'NEXT_PUBLIC_RP_ID',
           await ask(
             'NEXT_PUBLIC_RP_ID',
             'RP ID',
-            values.get('NEXT_PUBLIC_RP_ID') ?? new URL(origin).hostname
+            values.get('NEXT_PUBLIC_RP_ID') ?? derivedOrigin.rpId
           )
         );
         values.set(
           'ISSUER',
-          await ask('ISSUER', 'issuer', values.get('ISSUER') ?? new URL(origin).hostname)
+          await ask('ISSUER', 'issuer', values.get('ISSUER') ?? derivedOrigin.issuer)
         );
         if (!existing) {
           const dbName = await ask(
@@ -595,14 +653,29 @@ const main = async () => {
             'user名',
             values.get('MYSQL_USER') ?? 'hakoniwa_user'
           );
-          const dbPassword = randomBytes(32).toString('base64url');
+          const hostPort = await askNumber(
+            'MYSQL_HOST_PORT',
+            'host側port',
+            13306,
+            (v) => Number.isInteger(v) && v > 0 && v <= 65535
+          );
+          const moderatorId = await ask(
+            'MODERATOR_INITIAL_ID',
+            '初期ID',
+            values.get('MODERATOR_INITIAL_ID') ?? 'moderator0001'
+          );
+          const moderatorName = await ask(
+            'MODERATOR_INITIAL_USER_NAME',
+            '表示名',
+            values.get('MODERATOR_INITIAL_USER_NAME') ?? 'Moderator'
+          );
+          const dbPassword = generatedSecrets!.dbPassword;
           values.set('DB_TYPE', 'mysql');
           values.set('MYSQL_DATABASE', dbName);
           values.set('MYSQL_USER', dbUser);
           values.set('MYSQL_PASSWORD', dbPassword);
-          values.set('MYSQL_ROOT_PASSWORD', randomBytes(32).toString('base64url'));
-          values.set('PASSKEY_FP_PEPPER', randomBytes(32).toString('base64url'));
-          const hostPort = origin.includes('dev1.') ? 13307 : 13306;
+          values.set('MYSQL_ROOT_PASSWORD', generatedSecrets!.rootPassword);
+          values.set('PASSKEY_FP_PEPPER', generatedSecrets!.pepper);
           values.set(
             'DB_CONNECTION_STRING',
             `mysql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@127.0.0.1:${hostPort}/${encodeURIComponent(dbName)}`
@@ -611,8 +684,18 @@ const main = async () => {
             'DOCKER_DB_CONNECTION_STRING',
             `mysql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@mysql:3306/${encodeURIComponent(dbName)}`
           );
+          values.set('MODERATOR_INITIAL_ID', moderatorId);
+          values.set('MODERATOR_INITIAL_USER_NAME', moderatorName);
           const password = await askSecret('MODERATOR_INITIAL_PASSWORD', 'password');
           if (!password) throw new Error('Moderator bootstrap password is required');
+          const passwordConfirmation = await askSecret(
+            'MODERATOR_INITIAL_PASSWORD',
+            'password (確認)'
+          );
+          if (password !== passwordConfirmation)
+            throw new Error(
+              'Moderator bootstrap passwordが確認入力と一致しません。設定は保存していません。'
+            );
           values.set('MODERATOR_INITIAL_PASSWORD', password);
         }
 
@@ -656,20 +739,40 @@ const main = async () => {
           { file: '.env.production.local', content: local, secret: true },
         ]);
         const verified = await loadProductionEnv(root);
+        const verifiedProduction = parseEnv(
+          await readFile(resolve(root, '.env.production'), 'utf8')
+        ).values;
+        const verifiedLocal = parseEnv(
+          await readFile(resolve(root, '.env.production.local'), 'utf8')
+        ).values;
+        for (const key of localKeys)
+          if (verifiedProduction.has(key))
+            throw new Error(
+              `保存後検証に失敗しました: local-only key ${key} が公開設定へ混入しています。`
+            );
+        for (const [key, expected] of productionValues)
+          if (verifiedProduction.get(key) !== expected)
+            throw new Error(`保存後検証に失敗しました: ${key} の保存値が一致しません。`);
+        for (const [key, expected] of localValues)
+          if (verifiedLocal.get(key) !== expected)
+            throw new Error(`保存後検証に失敗しました: ${key} の保存値が一致しません。`);
+        const localMode = (await stat(resolve(root, '.env.production.local'))).mode & 0o777;
+        if (localMode !== 0o600)
+          throw new Error(
+            '保存後検証に失敗しました: .env.production.local の権限が0600ではありません。'
+          );
+        for (const key of [...DAILY_KEYS, 'NEXT_PUBLIC_MAP_SIZE', 'NEXT_PUBLIC_MAX_MONEY'])
+          if (!Number.isFinite(Number(verified.get(key))))
+            throw new Error(`保存後検証に失敗しました: ${key} が数値ではありません。`);
         const verifiedCron = analyzeCron(
           verified.get('NEXT_PUBLIC_TURN_CRON')!,
           verified.get('NEXT_PUBLIC_TURN_TIMEZONE')!
         );
         if (verifiedCron.turnsPerDay !== analysis.turnsPerDay)
           throw new Error('Post-write cron verification failed');
-        const directory = root.includes('next-hakoniwa-dev1')
-          ? '~/next-hakoniwa-dev1'
-          : root.includes('next-hakoniwa')
-            ? '~/next-hakoniwa'
-            : root;
         console.log('\n設定を保存しました。secretは変更内容へ表示していません。');
         console.log('\n変更を反映するには、次のコマンドを実行してください。\n');
-        console.log(deployCommandFor(directory));
+        console.log(deployCommandFor(root));
         return;
       } catch (error) {
         if (error instanceof UndoRequested) continue;

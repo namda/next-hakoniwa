@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createSpinner, deployCommandFor } from './index';
+import { createSpinner, deployCommandFor, originDefaults, PERCENT_SETTING_KEYS } from './index';
 
 describe('setup UI helpers', () => {
   it('updates a TTY spinner on one line and clears it', () => {
@@ -34,10 +34,25 @@ describe('setup UI helpers', () => {
     expect(writes).toEqual(['読み込み中\n']);
   });
 
-  it('prints environment-specific one-line deploy commands', () => {
-    const command = deployCommandFor('~/next-hakoniwa-dev1');
-    expect(command).toContain('cd ~/next-hakoniwa-dev1 && docker compose');
+  it('uses the actual repository root in one-line deploy commands', () => {
+    const command = deployCommandFor('/srv/games/fast-world');
+    expect(command).toContain('cd /srv/games/fast-world && docker compose');
     expect(command).not.toContain('\n');
     expect(command).not.toMatch(/password|pepper|secret/i);
+  });
+  it('derives new-environment RP ID and issuer from Origin', () => {
+    expect(originDefaults('https://game.example.com:8443')).toEqual({
+      rpId: 'game.example.com',
+      issuer: 'game.example.com',
+    });
+  });
+  it('includes attempt, conditional, HEX, and village percentage settings', () => {
+    expect(PERCENT_SETTING_KEYS).toEqual([
+      'NEXT_PUBLIC_BURIED_TREASURE_RATE',
+      'NEXT_PUBLIC_OIL_FIELD_RATE',
+      'NEXT_PUBLIC_OIL_EXHAUSTION_RATE',
+      'NEXT_PUBLIC_CONTINUOUS_METEORITE_RATE',
+      'NEXT_PUBLIC_VILLAGE_APPEARANCE_RATE',
+    ]);
   });
 });
