@@ -4,6 +4,10 @@
 
 ## セットアップ
 
+本番/DEV1の初期設定と再設定は、対話端末から `npm run setup` を実行します。
+既存secretを維持し、確定前にマスク済み差分を表示してから一意なbackupを作成します。
+setupはbuild、migration、deployを自動実行しません。
+
 ### 0. mise で開発ツールのバージョンを揃える
 
 このリポジトリは `mise.toml` で Node.js / npm バージョンを管理します。

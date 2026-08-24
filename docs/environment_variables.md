@@ -8,6 +8,17 @@
 
 ## 設定ファイルについて
 
+本番設定は次の役割に分離します。
+
+- `.env.example`: Git管理するサンプルと初期候補（runtimeの現在値ではない）
+- `.env.production`: Git管理するゲームバランス・共通公開設定
+- `.env.production.local`: Git管理しない環境固有値・DB・secret
+
+対話端末で `npm run setup` を実行すると、新規設定または安全な再設定ができます。
+非TTY stdinは拒否し、キャンセル時は何も書きません。再設定ではDB password、Passkey
+pepper、Moderator initial bootstrap passwordを維持し、確定後の更新前に
+`.setup-backups/` へowner-onlyの一意なbackupを作成します。setupはbuildやdeployを行いません。
+
 このプロジェクトは [`dotenv-flow`](https://github.com/kerimdzhanov/dotenv-flow) を使用しています。
 `NODE_ENV` の値に応じて以下の順番でファイルを読み込みます（後で読まれたものが優先）。
 
@@ -16,6 +27,20 @@
 ```
 
 本番環境の機密情報は `.env.production.local` に記載し、**バージョン管理には含めないでください**。
+
+実行前から `process.env` に存在するshell/Compose値はenvファイルより優先され得ますが、
+setupは偶然存在するshell値を永続化しません。`NEXT_PUBLIC_*` はブラウザへ公開され得るため
+secretを置けません。Docker buildには環境固有の公開値（originとRP ID）だけをallowlistで渡し、
+`.env.production.local` 全体はbuild contextとbuild processの双方から除外します。
+
+`DB_CONNECTION_STRING` はhost側setup/診断用（本番13306、DEV1 13307）、
+`DOCKER_DB_CONNECTION_STRING` はCompose内の `mysql:3306` 用です。同じ資格情報から導出します。
+
+ターン速度の正本は `NEXT_PUBLIC_TURN_CRON` のみです。turn/dayと名目平均間隔は設定timezoneで
+Cronerの実発火から算出し、別のenvへ保存しません。global event rateは新規島のbaselineであり、
+既存島の `event_rate` はゲーム状態なのでsetupでは上書きしません。自然怪獣は
+`event_rate.monster` ではなくglobal怪獣式、油田枯渇はglobal rateを使用します。既存島がある
+環境ではmap sizeを変更できません。怪獣のday表示は確率式上の期待値で、実観測匹数ではありません。
 
 ---
 

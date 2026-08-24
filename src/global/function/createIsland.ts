@@ -241,7 +241,27 @@ export const createIsland = async (
       })
       .execute();
 
-    await trx.insertInto('event_rate').values({ uuid }).execute();
+    // DB defaults can lag behind a changed environment. New islands always use
+    // the current global baseline; existing islands keep their game-state rates.
+    await trx
+      .insertInto('event_rate')
+      .values({
+        uuid,
+        earthquake: META_DATA.EARTHQUAKE_RATE,
+        tsunami: META_DATA.TSUNAMI_RATE,
+        typhoon: META_DATA.TYPHOON_RATE,
+        meteorite: META_DATA.METEORITE_RATE,
+        huge_meteorite: META_DATA.HUGE_METEORITE_RATE,
+        eruption: META_DATA.ERUPTION_RATE,
+        fire: META_DATA.FIRE_RATE,
+        buried_treasure: META_DATA.BURIED_TREASURE_RATE,
+        oil_field: META_DATA.OIL_FIELD_RATE,
+        oil_exhaustion: META_DATA.OIL_EXHAUSTION_RATE,
+        fall_down: META_DATA.FALL_DOWN_RATE,
+        monster: META_DATA.MONSTER_RATE,
+        propaganda: 0,
+      })
+      .execute();
 
     // 初回称号を付与
     await trx

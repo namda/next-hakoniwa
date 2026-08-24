@@ -8,6 +8,6 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom',
-    include: ['src/**/*.{test,spec}.{ts,mts,cts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,mts,cts,tsx}', 'scripts/**/*.{test,spec}.{ts,mts,cts,tsx}'],
   },
 });
