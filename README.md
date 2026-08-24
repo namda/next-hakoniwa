@@ -49,13 +49,13 @@ npm run setup
 > [!IMPORTANT]
 > `npm run setup` は対話式TTY専用です。build、DB migration、deployは自動実行しません。設定保存後に表示される環境別の1ライナーを実行して反映してください。
 
-DEV1では次の形式のコマンドが表示されます。
+設定を保存したリポジトリのルートdirectoryで、次の形式のコマンドを実行します。
 
 ```bash
-cd ~/next-hakoniwa-dev1 && docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps
+docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps
 ```
 
-本番ではdirectoryが `~/next-hakoniwa` になります。本番への反映は、運用手順に従って `origin/main` に取り込まれた変更だけを対象にしてください。
+実際にはsetup完了時に、実行環境と現在のリポジトリdirectoryに対応した1ライナーが表示されます。本番への反映は、各環境の運用手順に従い、deploy対象として承認された変更だけを使用してください。
 
 設定ファイルの役割や全項目の詳細は [環境変数一覧](./docs/environment_variables.md) を参照してください。
 
