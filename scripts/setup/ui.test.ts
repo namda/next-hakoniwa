@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildFreshBase,
+  buildSetupBase,
   createSpinner,
   deployCommandsFor,
   mysqlConnectionStrings,
@@ -73,6 +74,23 @@ describe('setup UI helpers', () => {
     expect(values.get('NEXT_PUBLIC_MAP_SIZE')).toBe('17');
     expect(values.get('NEXT_PUBLIC_MAX_MONEY')).toBe('9999999');
     expect(values.get('ONLY_EXAMPLE')).toBe('fallback');
+    expect(values.get('NEXT_PUBLIC_ORIGIN_URL')).toBe('https://localhost');
+    expect(values.get('DOCKER_NEXT_PUBLIC_ORIGIN_URL')).toBe('https://localhost');
+    expect(originDefaults(values.get('NEXT_PUBLIC_ORIGIN_URL')!)).toEqual({
+      rpId: 'localhost',
+      issuer: 'localhost',
+    });
+  });
+  it('keeps an existing environment Origin during re-setup', () => {
+    const existing = new Map([
+      ['NEXT_PUBLIC_ORIGIN_URL', 'https://example.com'],
+      ['NEXT_PUBLIC_RP_ID', 'example.com'],
+      ['ISSUER', 'example.com'],
+    ]);
+    const values = buildSetupBase(true, existing, new Map(), new Map());
+    expect(values.get('NEXT_PUBLIC_ORIGIN_URL')).toBe('https://example.com');
+    expect(values.get('NEXT_PUBLIC_RP_ID')).toBe('example.com');
+    expect(values.get('ISSUER')).toBe('example.com');
   });
   it('shell-quotes repository paths containing spaces and metacharacters', () => {
     expect(shellQuote("/srv/Hakoniwa Server/a'b;touch bad")).toBe(

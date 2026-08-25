@@ -155,7 +155,20 @@ export const deployCommandsFor = (directory: string) => {
 export const buildFreshBase = (
   example: ReadonlyMap<string, string>,
   production: ReadonlyMap<string, string>
-) => new Map([...example, ...production]);
+) =>
+  new Map([
+    ...example,
+    ...production,
+    ['NEXT_PUBLIC_ORIGIN_URL', 'https://localhost'],
+    ['DOCKER_NEXT_PUBLIC_ORIGIN_URL', 'https://localhost'],
+  ]);
+
+export const buildSetupBase = (
+  existing: boolean,
+  current: ReadonlyMap<string, string>,
+  example: ReadonlyMap<string, string>,
+  production: ReadonlyMap<string, string>
+) => (existing ? new Map(current) : buildFreshBase(example, production));
 
 const numberValue = (values: Map<string, string>, key: string) => Number(values.get(key));
 const masked = (value?: string) => (value ? '[設定済み]' : '[未設定]');
@@ -372,7 +385,7 @@ const main = async () => {
         );
     }
 
-    const baseValues = existing ? new Map(current) : buildFreshBase(example, productionCurrent);
+    const baseValues = buildSetupBase(existing, current, example, productionCurrent);
     if (!existing) {
       for (const key of [
         'NEXT_PUBLIC_RP_ID',
