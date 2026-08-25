@@ -40,13 +40,13 @@ npm run setup
 > [!IMPORTANT]
 > `npm run setup` は対話式TTY専用です。build、DB migration、deployは自動実行しません。設定保存後に表示される環境別の1ライナーを実行して反映してください。
 
-設定を保存したリポジトリのルートdirectoryで、次の形式のコマンドを実行します。
+標準Compose（MySQL + app + bundled Nginx）では次の形式のコマンドを実行します。
 
 ```bash
-docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps
+docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d && docker compose --env-file .env.production.local ps
 ```
 
-実際にはsetup完了時に、現在のリポジトリdirectoryに対応した1ライナーが表示されます。`app` 起動時にはDB migrationが実行されます。
+外部reverse proxyを使用する場合は `up -d app` で `web` を起動しない構成も選べます。setup完了時に、現在のリポジトリdirectoryに対応した両方の1ライナーが表示されます。`app` 起動時にはDB migrationが実行されます。
 
 設定ファイルの役割や全項目の詳細は [環境変数一覧](./docs/environment_variables.md) を参照してください。
 
@@ -124,7 +124,7 @@ Passkey（WebAuthn）を用いた認証や、自己署名証明書によるHTTPS
 先に `npm run setup` を実行し、完了時に表示された1ライナーでbuild・起動してください。手動で実行する場合は、現在のCompose仕様に合わせてlocal env fileを明示します。
 
 ```bash
-docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps
+docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d && docker compose --env-file .env.production.local ps
 ```
 
 Origin URLなどの詳細は [Docker検証環境手順](./docs/docker_verification.md) を参照してください。

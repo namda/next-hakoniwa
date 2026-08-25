@@ -1,95 +1,85 @@
-# Docker検証環境（本番相当）について
+# Docker検証環境
 
-このプロジェクトでは、本番公開時とほぼ同じ構成（Nginx + Next.js + MySQL）をローカルに再現し、システムの動作検証を行うためのDocker Compose環境を用意しています。
+標準Composeは、MySQL、Next.js app、bundled Nginxをまとめて起動できます。PasskeyなどHTTPSとOriginの一致が必要な機能を、ローカルまたは検証環境で確認するための構成です。
 
-特に **Passkey（WebAuthn）** を使った認証など、「HTTPS（暗号化通信）が必須」「アクセス元のURL（Origin）が厳密に一致しないとエラーになる」といった、ローカル環境単体（`npm run dev`）ではテストしづらい機能の検証に必要となります。
+## 構成
 
-## システム構成
+- `mysql`: MySQL 8.0。host側portは `MYSQL_HOST_PORT` で設定します。
+- `app`: Next.js。起動時にDB migrationを実行します。
+- `web`: HTTPS対応のbundled Nginx。`app` へreverse proxyします。
 
-- **`web` (Nginx)**: リバースプロキシ。ポート `443` (HTTPS) および `80` (HTTP) で待機し、Appコンテナへ通信を流します。
-- **`app` (Next.js)**: アプリケーション本体。ビルド済みのNext.jsサーバーが稼働します。起動時にDBマイグレーションも自動実行します。
-- **`mysql` (MySQL 8.0)**: データベース。ホストと競合しないよう、ホストマシンの `13306` ポートに公開されています。
+外部Nginxなどを使用する環境では、`web` を起動せず `app` だけを起動できます。
 
----
-
-## 起動手順
-
-### 1. SSL/TLS 証明書の準備（初回のみ）
-
-NginxでHTTPS通信を行うため、自己署名のSSL証明書（オレオレ証明書）を作成します。
-プロジェクトルートで以下のコマンドを実行し、`.certs` ディレクトリにキーペアを生成してください。
+## 1. 依存パッケージ
 
 ```bash
-mkdir -p .certs
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout .certs/localhost.key -out .certs/localhost.crt -subj "/CN=localhost"
+npm install
 ```
 
-### 2. アクセス先（Origin URL）の指定
+## 2. 対話式設定
 
-Passkey認証の仕様上、**「ブラウザのアドレスバーのURL」** と、システムが認識する **「本来の起点URL（`NEXT_PUBLIC_ORIGIN_URL`）」** が完全に一致している必要があります。
-
-`docker-compose.yml` を直接編集するのではなく、必要に応じてプロジェクトルートに **`.env.local`** ファイルを作成し、環境変数を書き換えてください。（`.env.local` はGit管理から除外されるため、自分専用の検証IPを書いても安全です）
-
-> [!NOTE]
-> `app` サービスは `env_file` で `.env` / `.env.local` を読み込みます。ただし `DOCKER_` で始まる値は `docker-compose.yml` の変数展開でも使っているため、`.env.local` 側の `DOCKER_*` を反映したい場合は、Composeコマンドにも `--env-file` 指定が必要です。
-
-- **自身のPCブラウザからテストする場合（デフォルト）**:
-  何も設定しなくてOKです（`https://localhost` として扱われます）。
-
-- **LAN内の別端末（スマホや別PC）からIPアドレスでテストする場合**:
-  `.env.local` に以下の行を追記し、IPアドレスを書き換えます。
-
-  ```env
-  DOCKER_NEXT_PUBLIC_ORIGIN_URL=https://192.168.x.x
-  ```
-
-### 3. コンテナのビルドと起動
-
-設定の変更を反映させるため、コンテナイメージを（再）ビルドしてから起動します。
+repository rootの対話端末で実行します。
 
 ```bash
-# 通常（デフォルト設定のまま）
-docker compose build app
-docker compose up -d
-
-# .env.local の DOCKER_* を反映して起動する場合
-docker compose --env-file .env --env-file .env.local build app
-docker compose --env-file .env --env-file .env.local up -d
+npm run setup
 ```
 
-### 4. ブラウザでアクセス
+公開可能なゲーム設定は `.env.production`、環境固有値とsecretはGit管理外の `.env.production.local` に保存されます。setupは新規環境のDB credentialを生成し、再setupでは既存credentialを維持します。
 
-設定したOrigin（例: `https://localhost/` または `https://192.168.x.x/`）へブラウザからアクセスします。
+主なDocker用設定:
 
-> [!WARNING]
-> 自己署名証明書を使用しているため、ブラウザに「この接続ではプライバシーが保護されません」「安全ではありません」などの警告画面が表示されます。
-> 開発用の仕様ですので、「詳細設定」や「Advanced」から **「localhost（IP）にアクセスする（安全ではありません）」** をクリックして続行してください。
+- `MYSQL_HOST_PORT`: hostへ公開するMySQL port。初期候補は `13306`。
+- `DB_CONNECTION_STRING`: host側のsetup・診断用URL。
+- `DOCKER_DB_CONNECTION_STRING`: appから `mysql:3306` へ接続するURL。
+- `NEXT_PUBLIC_ORIGIN_URL`: ブラウザからアクセスするOrigin。
+- `DOCKER_NEXT_PUBLIC_ORIGIN_URL`: app runtime用Origin。通常は上記と同じ値。
+- `NEXT_PUBLIC_RP_ID`: PasskeyのRP ID。
 
----
+同一hostで複数環境を起動する場合は、環境ごとに異なるCompose project名、container名、公開port、volumeを使用してください。
 
-## 運用・デバッグのヒント
+## 3. bundled Nginx用証明書
 
-### アプリケーションログの確認
-
-Next.js サーバーやマイグレーションのエラーが起きていないかを確認する場合は、以下のコマンドでログを追跡できます。
+標準の `web` serviceは `.certs/localhost.crt` と `.certs/localhost.key` を使用します。初回に自己署名証明書を作成します。
 
 ```bash
-docker logs -f hakoniwa-app
+mkdir -p .certs && openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout .certs/localhost.key -out .certs/localhost.crt -subj "/CN=localhost"
 ```
 
-※ `Ready in ...` が表示されていれば起動成功です。
+自己署名証明書のため、ブラウザでは警告を確認したうえで検証用サイトへ進んでください。任意ドメインの証明書やCertbotはsetupの対象外です。
 
-### データベースに直接接続する
+## 4. buildと起動
 
-ホストマシン（あなたのPC）のDBクライアントツール群から、コンテナ内のMySQLに接続したい場合は以下の情報を使用してください。
+### 標準Compose（MySQL + app + bundled Nginx）
 
-- **ホスト**: `127.0.0.1` または `localhost`
-- **ポート**: `13306`
-- **ユーザー**: `root`
-- **パスワード**: `password` (docker-compose.yml 参照)
-- **データベース**: `hakoniwa`
+```bash
+docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d && docker compose --env-file .env.production.local ps
+```
 
-### よくあるエラー
+### 外部reverse proxy（MySQL + app）
 
-- **`Passkey関連のエラーが生じる` / `Cannot read public key ...`**
-  URLに関するエラーは、ほぼすべてOriginの不一致が原因です。例えばデフォルト（`https://localhost`）のままコンテナを起動した状態で `https://127.0.0.1` やLAN内の別IPでアクセスすると認証が拒否されます。必ずアクセスするURLに合わせて `.env.local` の `DOCKER_NEXT_PUBLIC_ORIGIN_URL` を設定し、**再ビルド**（`docker compose --env-file .env --env-file .env.local build app`）を行ってください。
+```bash
+docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps
+```
+
+setupの保存完了時にも、実際のrepository pathを含む両方の1ライナーが表示されます。setup自体はbuildや起動を行いません。
+
+## 5. 確認と操作
+
+標準Composeでは設定したOriginへアクセスします。初期のlocalhost構成なら `https://localhost` です。Passkey検証ではブラウザのURL、`NEXT_PUBLIC_ORIGIN_URL`、`NEXT_PUBLIC_RP_ID` の整合を確認してください。公開値を変更した場合は再buildが必要です。
+
+既存コンテナの通常操作はbare Composeコマンドでも行えます。
+
+```bash
+docker compose ps
+docker compose logs app
+docker compose restart app
+```
+
+host側DBクライアントから接続する場合は `.env.production.local` の `DB_CONNECTION_STRING` を使用します。passwordをコマンド履歴やログへ直接出力しないでください。
+
+## トラブルシューティング
+
+- buildでOrigin/RP ID不足が表示される: `npm run setup` を完了し、`--env-file .env.production.local` 付きのbuildコマンドを使用します。
+- Passkeyエラー: ブラウザのOrigin、`NEXT_PUBLIC_ORIGIN_URL`、`NEXT_PUBLIC_RP_ID` を確認して再buildします。
+- app起動失敗: `docker compose logs app` でmigration・DB接続エラーを確認します。
+- MySQL port競合: setupを再実行し、未使用の `MYSQL_HOST_PORT` を選択します。

@@ -2,8 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  buildFreshBase,
   createSpinner,
-  deployCommandFor,
+  deployCommandsFor,
   mysqlConnectionStrings,
   originDefaults,
   PERCENT_SETTING_KEYS,
@@ -44,11 +45,34 @@ describe('setup UI helpers', () => {
     expect(writes).toEqual(['読み込み中\n']);
   });
 
-  it('uses the actual repository root in one-line deploy commands', () => {
-    const command = deployCommandFor('/srv/games/fast-world');
-    expect(command).toContain("cd '/srv/games/fast-world' && docker compose");
-    expect(command).not.toContain('\n');
-    expect(command).not.toMatch(/password|pepper|secret/i);
+  it('prints safe one-line commands for bundled web and external proxies', () => {
+    const commands = deployCommandsFor('/srv/games/fast-world');
+    expect(commands.bundledWeb).toContain("cd '/srv/games/fast-world' && docker compose");
+    expect(commands.bundledWeb).toContain('up -d &&');
+    expect(commands.externalProxy).toContain('up -d app &&');
+    for (const command of Object.values(commands)) {
+      expect(command).not.toContain('\n');
+      expect(command).not.toMatch(/password|pepper|secret/i);
+    }
+  });
+  it('uses production game settings before example fallbacks for fresh setup', () => {
+    const values = buildFreshBase(
+      new Map([
+        ['NEXT_PUBLIC_TURN_CRON', 'example-cron'],
+        ['NEXT_PUBLIC_MAP_SIZE', '12'],
+        ['NEXT_PUBLIC_MAX_MONEY', '9999'],
+        ['ONLY_EXAMPLE', 'fallback'],
+      ]),
+      new Map([
+        ['NEXT_PUBLIC_TURN_CRON', 'production-cron'],
+        ['NEXT_PUBLIC_MAP_SIZE', '17'],
+        ['NEXT_PUBLIC_MAX_MONEY', '9999999'],
+      ])
+    );
+    expect(values.get('NEXT_PUBLIC_TURN_CRON')).toBe('production-cron');
+    expect(values.get('NEXT_PUBLIC_MAP_SIZE')).toBe('17');
+    expect(values.get('NEXT_PUBLIC_MAX_MONEY')).toBe('9999999');
+    expect(values.get('ONLY_EXAMPLE')).toBe('fallback');
   });
   it('shell-quotes repository paths containing spaces and metacharacters', () => {
     expect(shellQuote("/srv/Hakoniwa Server/a'b;touch bad")).toBe(

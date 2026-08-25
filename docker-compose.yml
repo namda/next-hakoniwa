@@ -23,8 +23,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_ORIGIN_URL: ${NEXT_PUBLIC_ORIGIN_URL:?set NEXT_PUBLIC_ORIGIN_URL with --env-file .env.production.local}
-        NEXT_PUBLIC_RP_ID: ${NEXT_PUBLIC_RP_ID:?set NEXT_PUBLIC_RP_ID with --env-file .env.production.local}
+        NEXT_PUBLIC_ORIGIN_URL: ${NEXT_PUBLIC_ORIGIN_URL:-}
+        NEXT_PUBLIC_RP_ID: ${NEXT_PUBLIC_RP_ID:-}
     container_name: hakoniwa-app
     env_file:
       - path: .env.production

@@ -144,8 +144,18 @@ export const createSpinner = (message: string, output = stdout) => {
 
 export const shellQuote = (value: string) => `'${value.replaceAll("'", `'"'"'`)}'`;
 
-export const deployCommandFor = (directory: string) =>
-  `cd ${shellQuote(directory)} && docker compose --env-file .env.production.local build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps`;
+export const deployCommandsFor = (directory: string) => {
+  const prefix = `cd ${shellQuote(directory)} && docker compose --env-file .env.production.local`;
+  return {
+    bundledWeb: `${prefix} build app && docker compose --env-file .env.production.local up -d && docker compose --env-file .env.production.local ps`,
+    externalProxy: `${prefix} build app && docker compose --env-file .env.production.local up -d app && docker compose --env-file .env.production.local ps`,
+  };
+};
+
+export const buildFreshBase = (
+  example: ReadonlyMap<string, string>,
+  production: ReadonlyMap<string, string>
+) => new Map([...example, ...production]);
 
 const numberValue = (values: Map<string, string>, key: string) => Number(values.get(key));
 const masked = (value?: string) => (value ? '[設定済み]' : '[未設定]');
@@ -297,6 +307,9 @@ const main = async () => {
   };
   try {
     const example = parseEnv(await readFile(resolve(root, '.env.example'), 'utf8')).values;
+    const productionCurrent = parseEnv(
+      await readFile(resolve(root, '.env.production'), 'utf8').catch(() => '')
+    ).values;
     const current = await loadProductionEnv(root);
     const hasLocal = existsSync(resolve(root, '.env.production.local'));
     const mysqlContainerId = composeMysqlContainerId(root);
@@ -359,7 +372,7 @@ const main = async () => {
         );
     }
 
-    const baseValues = existing ? new Map(current) : new Map(example);
+    const baseValues = existing ? new Map(current) : buildFreshBase(example, productionCurrent);
     if (!existing) {
       for (const key of [
         'NEXT_PUBLIC_RP_ID',
@@ -843,8 +856,12 @@ const main = async () => {
         if (verifiedCron.turnsPerDay !== analysis.turnsPerDay)
           throw new Error('Post-write cron verification failed');
         console.log('\n設定を保存しました。secretは変更内容へ表示していません。');
-        console.log('\n変更を反映するには、次のコマンドを実行してください。\n');
-        console.log(deployCommandFor(root));
+        const deployCommands = deployCommandsFor(root);
+        console.log('\n変更を反映するには、利用構成に合うコマンドを実行してください。');
+        console.log('\n標準Compose（bundled Nginx）:\n');
+        console.log(deployCommands.bundledWeb);
+        console.log('\n外部reverse proxyを使う場合:\n');
+        console.log(deployCommands.externalProxy);
         return;
       } catch (error) {
         if (error instanceof UndoRequested) continue;
