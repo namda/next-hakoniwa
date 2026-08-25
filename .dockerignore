@@ -6,6 +6,10 @@ coverage
 storybook-static
 pentest-results
 log
+.env
+.env.local
+.env.*.local
+.setup-backups/
 
 .docs
 cache

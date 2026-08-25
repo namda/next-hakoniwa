@@ -19,7 +19,15 @@ FROM node:24.14.1-slim AS builder
 # node公式イメージに含まれる非rootユーザー(node)を利用する
 USER node
 WORKDIR /app
+ARG NEXT_PUBLIC_ORIGIN_URL
+ARG NEXT_PUBLIC_RP_ID
+ENV NEXT_PUBLIC_ORIGIN_URL=$NEXT_PUBLIC_ORIGIN_URL
+ENV NEXT_PUBLIC_RP_ID=$NEXT_PUBLIC_RP_ID
 COPY --chown=node:node . .
+
+# Compose全体のparseは妨げず、production imageをbuildするときだけ公開値を必須にする。
+RUN test -n "$NEXT_PUBLIC_ORIGIN_URL" || (echo "NEXT_PUBLIC_ORIGIN_URL is required for production build" >&2; exit 1)
+RUN test -n "$NEXT_PUBLIC_RP_ID" || (echo "NEXT_PUBLIC_RP_ID is required for production build" >&2; exit 1)
 
 # productionビルド時にTelemetryをオプトアウト（任意）
 ENV NEXT_TELEMETRY_DISABLED 1

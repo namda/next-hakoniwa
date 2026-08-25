@@ -2,14 +2,13 @@ services:
   mysql:
     image: mysql:8.0
     container_name: hakoniwa-mysql
+    env_file:
+      - path: .env.production.local
+        required: true
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: hakoniwa
-      MYSQL_USER: hakoniwa_user
-      MYSQL_PASSWORD: hakoniwa_password
       TZ: Asia/Tokyo
     ports:
-      - '127.0.0.1:13306:3306'
+      - '127.0.0.1:${MYSQL_HOST_PORT:-13306}:3306'
     volumes:
       - db_data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
@@ -23,25 +22,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_ORIGIN_URL: ${NEXT_PUBLIC_ORIGIN_URL:-}
+        NEXT_PUBLIC_RP_ID: ${NEXT_PUBLIC_RP_ID:-}
     container_name: hakoniwa-app
     env_file:
-      - path: .env
-        required: false
-      - path: .env.local
-        required: false
-      - path: .env.development
-        required: false
-      - path : .env.development.local
-        required: false
       - path: .env.production
         required: false
       - path: .env.production.local
-        required: false
+        required: true
     environment:
-      # build時にDB_TYPE=mysqlでビルドされているが、ここでも明示しておく
       DB_TYPE: mysql
-      DB_CONNECTION_STRING: ${DOCKER_DB_CONNECTION_STRING:-mysql://hakoniwa_user:hakoniwa_password@mysql:3306/hakoniwa}
-      NEXT_PUBLIC_ORIGIN_URL: ${DOCKER_NEXT_PUBLIC_ORIGIN_URL:-http://localhost}
     ports:
       - '127.0.0.1:3000:3000'
     depends_on:
@@ -49,29 +40,7 @@ services:
         condition: service_healthy
     volumes:
       - ./log:/app/log
-    command: sh -c "npx tsx ./src/db/migrate.ts && npm start"
-
-  app-build:
-    user: "1000:1000"
-    image: node:24.14.1-bookworm-slim
-    container_name: hakoniwa-app-build
-    working_dir: /app
-    env_file:
-      - path: .env
-        required: false
-      - path: .env.local
-        required: false
-      - path: .env.development
-        required: false
-      - path : .env.development.local
-        required: false
-      - path: .env.production
-        required: false
-      - path: .env.production.local
-        required: false
-    volumes:
-      - .:/app
-    command: sh -c "npm run build"
+    command: sh -c 'export DB_CONNECTION_STRING="$$DOCKER_DB_CONNECTION_STRING"; export NEXT_PUBLIC_ORIGIN_URL="$$DOCKER_NEXT_PUBLIC_ORIGIN_URL"; npx tsx ./src/db/migrate.ts && npm start'
 
   web:
     image: nginx:latest

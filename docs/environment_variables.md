@@ -8,6 +8,17 @@
 
 ## 設定ファイルについて
 
+本番設定は次の役割に分離します。
+
+- `.env.example`: Git管理するサンプルと初期候補（runtimeの現在値ではない）
+- `.env.production`: Git管理するゲームバランス・共通公開設定
+- `.env.production.local`: Git管理しない環境固有値・DB・secret
+
+対話端末で `npm run setup` を実行すると、新規設定または安全な再設定ができます。
+非TTY stdinは拒否し、キャンセル時は何も書きません。再設定ではDB password、Passkey
+pepper、Moderator initial bootstrap passwordを維持し、確定後の更新前に
+`.setup-backups/` へowner-onlyの一意なbackupを作成します。setupはbuildやdeployを行いません。
+
 このプロジェクトは [`dotenv-flow`](https://github.com/kerimdzhanov/dotenv-flow) を使用しています。
 `NODE_ENV` の値に応じて以下の順番でファイルを読み込みます（後で読まれたものが優先）。
 
@@ -16,6 +27,20 @@
 ```
 
 本番環境の機密情報は `.env.production.local` に記載し、**バージョン管理には含めないでください**。
+
+実行前から `process.env` に存在するshell/Compose値はenvファイルより優先され得ますが、
+setupは偶然存在するshell値を永続化しません。`NEXT_PUBLIC_*` はブラウザへ公開され得るため
+secretを置けません。Docker buildには環境固有の公開値（originとRP ID）だけをallowlistで渡し、
+`.env.production.local` 全体はbuild contextとbuild processの双方から除外します。
+
+`DB_CONNECTION_STRING` はhost側setup/診断用で、利用する環境の公開MySQL portを指定します。
+`DOCKER_DB_CONNECTION_STRING` はCompose内の `mysql:3306` 用です。同じ資格情報から導出します。
+
+ターン速度の正本は `NEXT_PUBLIC_TURN_CRON` のみです。turn/dayと名目平均間隔は設定timezoneで
+Cronerの実発火から算出し、別のenvへ保存しません。global event rateは新規島のbaselineであり、
+既存島の `event_rate` はゲーム状態なのでsetupでは上書きしません。自然怪獣は
+`event_rate.monster` ではなくglobal怪獣式、油田枯渇はglobal rateを使用します。既存島がある
+環境ではmap sizeを変更できません。怪獣のday表示は確率式上の期待値で、実観測匹数ではありません。
 
 ---
 
@@ -32,13 +57,21 @@
 
 ## データベース設定
 
-| 変数名                 | 例                      | 説明                                                         |
-| ---------------------- | ----------------------- | ------------------------------------------------------------ |
-| `DB_TYPE`              | `sqlite` / `mysql`      | 使用するDBの種別。`kysely-codegen` の `--dialect` に渡される |
-| `DB_CONNECTION_STRING` | `./src/db/data/prod.db` | DB接続文字列。SQLiteはファイルパス、MySQLは接続URL           |
+| 変数名                        | 例                                               | 説明                                                      |
+| ----------------------------- | ------------------------------------------------ | --------------------------------------------------------- |
+| `DB_TYPE`                     | `sqlite` / `mysql`                               | 使用するDBの種別。production setupでは `mysql`            |
+| `MYSQL_DATABASE`              | `hakoniwa`                                       | MySQL database名                                          |
+| `MYSQL_USER`                  | `hakoniwa_user`                                  | MySQL application user                                    |
+| `MYSQL_PASSWORD`              | _(ランダムな文字列)_                             | MySQL application password。`.env.production.local`に保存 |
+| `MYSQL_ROOT_PASSWORD`         | _(別のランダムな文字列)_                         | MySQL root password。`.env.production.local`に保存        |
+| `MYSQL_HOST_PORT`             | `13306`                                          | hostへ公開するMySQL port。Composeとhost側URLで共通使用    |
+| `DB_CONNECTION_STRING`        | `mysql://user:password@127.0.0.1:13306/hakoniwa` | host側setup・診断用URL。portは環境に合わせる              |
+| `DOCKER_DB_CONNECTION_STRING` | `mysql://user:password@mysql:3306/hakoniwa`      | app containerからMySQL serviceへ接続するURL               |
 
 > [!IMPORTANT]
 > `DB_TYPE=mysql` の場合、MySQL 5.7 以上が必要です。
+
+DB、Passkey、Moderator、Origin等はsetupで管理します。S3詳細、火災規模weight・damage rate、その他の細かな値はこの一覧を参照してenvファイルで手動設定します。再setupはsetup対象外の既存値を削除・上書きしません。
 
 ---
 
@@ -158,26 +191,28 @@
 
 ## 自然災害・イベント設定
 
-各種イベントの発生確率は「毎ターンの発生確率（%）」です。
+各イベント設定の判定単位は項目ごとに異なります。詳細は各項目の説明を参照してください。
 
-| 変数名                                  | 例     | 説明                              |
-| --------------------------------------- | ------ | --------------------------------- |
-| `NEXT_PUBLIC_EARTHQUAKE_RATE`           | `0.5`  | 地震の発生確率（%）               |
-| `NEXT_PUBLIC_EARTHQUAKE_DESTROY_RATE`   | `25`   | 地震で破壊される地形の割合（%）   |
-| `NEXT_PUBLIC_TSUNAMI_RATE`              | `1.5`  | 津波の発生確率（%）               |
-| `NEXT_PUBLIC_TYPHOON_RATE`              | `2`    | 台風の発生確率（%）               |
-| `NEXT_PUBLIC_METEORITE_RATE`            | `1.5`  | 隕石の発生確率（%）               |
-| `NEXT_PUBLIC_CONTINUOUS_METEORITE_RATE` | `50`   | 隕石が連続して落下する確率（%）   |
-| `NEXT_PUBLIC_HUGE_METEORITE_RATE`       | `0.5`  | 巨大隕石の発生確率（%）           |
-| `NEXT_PUBLIC_ERUPTION_RATE`             | `1`    | 火山噴火の発生確率（%）           |
-| `NEXT_PUBLIC_FIRE_RATE`                 | `1`    | 火災の発生確率（%）               |
-| `NEXT_PUBLIC_FALL_DOWN_RATE`            | `3`    | 建物崩壊の発生確率（%）           |
-| `NEXT_PUBLIC_FALL_DOWN_BORDER`          | `9000` | 建物崩壊が発生する人口の閾値      |
-| `NEXT_PUBLIC_BURIED_TREASURE_RATE`      | `0.1`  | 埋蔵金発見の発生確率（%）         |
-| `NEXT_PUBLIC_OIL_FIELD_RATE`            | `1`    | 油田発見の発生確率（%）           |
-| `NEXT_PUBLIC_OIL_EXHAUSTION_RATE`       | `40`   | 油田が枯渇する確率（%、毎ターン） |
-| `NEXT_PUBLIC_OIL_EARN`                  | `1000` | 油田からの収益                    |
-| `NEXT_PUBLIC_MONSTER_RATE`              | `0.03` | 怪獣出現の発生確率（%）           |
+| 変数名                                                   | 例         | 説明                                                    |
+| -------------------------------------------------------- | ---------- | ------------------------------------------------------- |
+| `NEXT_PUBLIC_EARTHQUAKE_RATE`                            | `0.5`      | 地震の発生確率（%）                                     |
+| `NEXT_PUBLIC_EARTHQUAKE_DESTROY_RATE`                    | `25`       | 地震で破壊される地形の割合（%）                         |
+| `NEXT_PUBLIC_TSUNAMI_RATE`                               | `1.5`      | 津波の発生確率（%）                                     |
+| `NEXT_PUBLIC_TYPHOON_RATE`                               | `2`        | 台風の発生確率（%）                                     |
+| `NEXT_PUBLIC_METEORITE_RATE`                             | `1.5`      | 隕石の発生確率（%）                                     |
+| `NEXT_PUBLIC_CONTINUOUS_METEORITE_RATE`                  | `50`       | 隕石が連続して落下する確率（%）                         |
+| `NEXT_PUBLIC_HUGE_METEORITE_RATE`                        | `0.5`      | 巨大隕石の発生確率（%）                                 |
+| `NEXT_PUBLIC_ERUPTION_RATE`                              | `1`        | 火山噴火の発生確率（%）                                 |
+| `NEXT_PUBLIC_FIRE_RATE`                                  | `1`        | 火災の発生確率（%）                                     |
+| `NEXT_PUBLIC_FALL_DOWN_RATE`                             | `3`        | 面積境界を超えた島の地盤沈下判定率（% / turn）          |
+| `NEXT_PUBLIC_FALL_DOWN_BORDER`                           | `9000`     | 地盤沈下条件 `島面積 > 境界` の面積境界（万坪）         |
+| `NEXT_PUBLIC_BURIED_TREASURE_RATE`                       | `0.1`      | 整地1回あたりの埋蔵金発見率（%）                        |
+| `NEXT_PUBLIC_OIL_FIELD_RATE`                             | `1`        | 海掘削1回あたりの油田発見率（%）                        |
+| `NEXT_PUBLIC_OIL_EXHAUSTION_RATE`                        | `40`       | 油田1HEX・1turnあたりの枯渇率（%）                      |
+| `NEXT_PUBLIC_OIL_EARN`                                   | `1000`     | 油田からの収益                                          |
+| `NEXT_PUBLIC_MONSTER_SPAWN_RATE_BELOW_1M`                | `0.03`     | 100万人未満で人口比を掛ける基準率（% / turn）           |
+| `NEXT_PUBLIC_MONSTER_RATE`                               | `0.006944` | 100万人以上で面積 `area / 100` と人口倍率を掛ける基準率 |
+| `NEXT_PUBLIC_MONSTER_POPULATION_MULTIPLIER_PER_EXTRA_1M` | `0.25`     | 100万人超過分100万人ごとに加算する人口倍率係数          |
 
 ---
 
