@@ -141,6 +141,25 @@ describe('insertGeneratedPlans', () => {
     expect(result.items.slice(-2).map((plan) => plan.plan)).toEqual(['logging', 'afforest']);
   });
 
+  it('残り枠が1件だけなら伐採と植林をどちらも追加しない', () => {
+    const generated = generatePlanAutoInput({
+      type: 'logging_and_afforest',
+      islandInfo: map,
+      uuid,
+      quantity: 0,
+    });
+    const result = insertGeneratedPlans({
+      currentItems: [item('financing', 0), item('financing', 1)],
+      generatedPlans: generated,
+      position: 3,
+      planLength: 3,
+      keepPairs: true,
+    });
+
+    expect(result.insertedCount).toBe(0);
+    expect(result.items.map((plan) => plan.plan)).toEqual(['financing', 'financing']);
+  });
+
   it('自動入力全体を1回のUndoとRedoで操作できる', () => {
     const initialItems = [item('financing', 0), item('financing', 1)];
     const generated = generatePlanAutoInput({ type: 'bulk_leveling', islandInfo: map, uuid });
@@ -169,5 +188,18 @@ describe('auto input values', () => {
     expect(getAutoInputType('auto:bulk_leveling')).toBe('bulk_leveling');
     expect(getAutoInputType('auto:unknown')).toBeNull();
     expect(getAutoInputType('leveling')).toBeNull();
+  });
+
+  it('auto valueをPlan配列へ保存せず、展開後の通常Planだけを挿入する', () => {
+    const generated = generatePlanAutoInput({ type: 'bulk_leveling', islandInfo: map, uuid });
+    const result = insertGeneratedPlans({
+      currentItems: [],
+      generatedPlans: generated,
+      position: 1,
+      planLength: 30,
+    });
+
+    expect(result.items.map(({ plan }) => plan)).toEqual(['leveling', 'leveling']);
+    expect(result.items.some(({ plan }) => isAutoInputValue(plan))).toBe(false);
   });
 });
