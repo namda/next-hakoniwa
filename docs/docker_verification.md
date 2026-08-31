@@ -67,12 +67,12 @@ setupの保存完了時にも、実際のrepository pathを含む両方の1ラ�
 
 標準Composeでは設定したOriginへアクセスします。初期のlocalhost構成なら `https://localhost` です。Passkey検証ではブラウザのURL、`NEXT_PUBLIC_ORIGIN_URL`、`NEXT_PUBLIC_RP_ID` の整合を確認してください。公開値を変更した場合は再buildが必要です。
 
-既存コンテナの通常操作はbare Composeコマンドでも行えます。
+既存コンテナの通常操作でもhost固有設定を明示します。
 
 ```bash
-docker compose ps
-docker compose logs app
-docker compose restart app
+docker compose --env-file .env.production.local ps
+docker compose --env-file .env.production.local logs app
+docker compose --env-file .env.production.local restart app
 ```
 
 host側DBクライアントから接続する場合は `.env.production.local` の `DB_CONNECTION_STRING` を使用します。passwordをコマンド履歴やログへ直接出力しないでください。
@@ -81,5 +81,5 @@ host側DBクライアントから接続する場合は `.env.production.local` �
 
 - buildでOrigin/RP ID不足が表示される: `npm run setup` を完了し、`--env-file .env.production.local` 付きのbuildコマンドを使用します。
 - Passkeyエラー: ブラウザのOrigin、`NEXT_PUBLIC_ORIGIN_URL`、`NEXT_PUBLIC_RP_ID` を確認して再buildします。
-- app起動失敗: `docker compose logs app` でmigration・DB接続エラーを確認します。
+- app起動失敗: `docker compose --env-file .env.production.local logs app` でmigration・DB接続エラーを確認します。
 - MySQL port競合: setupを再実行し、未使用の `MYSQL_HOST_PORT` を選択します。
