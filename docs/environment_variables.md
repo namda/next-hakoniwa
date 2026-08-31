@@ -10,8 +10,9 @@
 
 本番設定は次の役割に分離します。
 
-- `.env.example`: Git管理するサンプルと初期候補（runtimeの現在値ではない）
-- `.env.production`: Git管理するゲームバランス・共通公開設定
+- `.env`: Git管理する全環境共通の非secret実設定
+- `.env.production`: `NODE_ENV=production` 固有かつhost非依存の差分（現在は空）
+- `.env.example`: Git管理するサンプル（runtimeの現在値や自動補完元ではない）
 - `.env.production.local`: Git管理しない環境固有値・DB・secret
 
 対話端末で `npm run setup` を実行すると、新規設定または安全な再設定ができます。

@@ -6,10 +6,16 @@ coverage
 storybook-static
 pentest-results
 log
-.env
 .env.local
 .env.*.local
 .setup-backups/
+compose.override.yml
+compose.override.yaml
+compose.override.yml.*
+compose.override.yaml.*
+
+*.env.bak*
+.env*.bak*
 
 .docs
 cache

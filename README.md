@@ -35,7 +35,7 @@ npm run setup
 
 初回構築ではDB passwordとPasskey pepperを安全な乱数で生成します。既存環境で再実行した場合は、既存DB password、Passkey pepper、Moderator初期bootstrap passwordを変更しません。secretの値は確認画面や差分へ表示されません。
 
-確定すると、公開可能なゲーム設定を `.env.production`、環境固有値とsecretを `.env.production.local` へ保存します。既存ファイルは書き換え前に `.setup-backups/` へbackupされます。
+確定すると、全環境共通の非secret設定を `.env`、環境固有値とsecretを `.env.production.local` へ保存します。既存ファイルは書き換え前に `.setup-backups/` へbackupされます。
 
 > [!IMPORTANT]
 > `npm run setup` は対話式TTY専用です。build、DB migration、deployは自動実行しません。設定保存後に表示される環境別の1ライナーを実行して反映してください。

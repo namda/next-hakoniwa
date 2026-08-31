@@ -24,7 +24,7 @@ repository rootの対話端末で実行します。
 npm run setup
 ```
 
-公開可能なゲーム設定は `.env.production`、環境固有値とsecretはGit管理外の `.env.production.local` に保存されます。setupは新規環境のDB credentialを生成し、再setupでは既存credentialを維持します。
+全環境共通の非secret設定は `.env`、環境固有値とsecretはGit管理外の `.env.production.local` に保存されます。setupは新規環境のDB credentialを生成し、再setupでは既存credentialを維持します。
 
 主なDocker用設定:
 
