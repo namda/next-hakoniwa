@@ -152,13 +152,9 @@ export const deployCommandsFor = (directory: string) => {
   };
 };
 
-export const buildFreshBase = (
-  example: ReadonlyMap<string, string>,
-  production: ReadonlyMap<string, string>
-) =>
+export const buildFreshBase = (common: ReadonlyMap<string, string>) =>
   new Map([
-    ...example,
-    ...production,
+    ...common,
     ['NEXT_PUBLIC_ORIGIN_URL', 'https://localhost'],
     ['DOCKER_NEXT_PUBLIC_ORIGIN_URL', 'https://localhost'],
   ]);
@@ -166,9 +162,8 @@ export const buildFreshBase = (
 export const buildSetupBase = (
   existing: boolean,
   current: ReadonlyMap<string, string>,
-  example: ReadonlyMap<string, string>,
-  production: ReadonlyMap<string, string>
-) => (existing ? new Map(current) : buildFreshBase(example, production));
+  common: ReadonlyMap<string, string>
+) => (existing ? new Map(current) : buildFreshBase(common));
 
 const numberValue = (values: Map<string, string>, key: string) => Number(values.get(key));
 const masked = (value?: string) => (value ? '[設定済み]' : '[未設定]');
@@ -319,9 +314,8 @@ const main = async () => {
     spinnerStopped = true;
   };
   try {
-    const example = parseEnv(await readFile(resolve(root, '.env.example'), 'utf8')).values;
-    const productionCurrent = parseEnv(
-      await readFile(resolve(root, '.env.production'), 'utf8').catch(() => '')
+    const commonCurrent = parseEnv(
+      await readFile(resolve(root, '.env'), 'utf8').catch(() => '')
     ).values;
     const current = await loadProductionEnv(root);
     const hasLocal = existsSync(resolve(root, '.env.production.local'));
@@ -385,7 +379,7 @@ const main = async () => {
         );
     }
 
-    const baseValues = buildSetupBase(existing, current, example, productionCurrent);
+    const baseValues = buildSetupBase(existing, current, commonCurrent);
     if (!existing) {
       for (const key of [
         'NEXT_PUBLIC_RP_ID',
@@ -809,47 +803,39 @@ const main = async () => {
           return;
         }
 
-        const productionKeys = new Set(
+        const commonKeys = new Set(
           [...values.keys()].filter(
             (key) =>
               (key.startsWith('NEXT_PUBLIC_') && !LOCAL_KEYS.has(key)) || PUBLIC_COMMON.has(key)
           )
         );
         const localKeys = LOCAL_KEYS;
-        const productionDoc = parseEnv(
-          await readFile(resolve(root, '.env.production'), 'utf8').catch(() => '')
-        );
+        const commonDoc = parseEnv(await readFile(resolve(root, '.env'), 'utf8').catch(() => ''));
         const localDoc = parseEnv(
           await readFile(resolve(root, '.env.production.local'), 'utf8').catch(() => '')
         );
-        const productionValues = new Map([...values].filter(([key]) => productionKeys.has(key)));
+        const commonValues = new Map([...values].filter(([key]) => commonKeys.has(key)));
         const localValues = new Map([...values].filter(([key]) => localKeys.has(key)));
-        const production = updateEnv(
-          productionDoc,
-          productionValues,
-          new Set([...productionKeys, ...localKeys])
-        );
-        const local = updateEnv(localDoc, localValues, new Set([...productionKeys, ...localKeys]));
-        parseEnv(production);
+        const common = updateEnv(commonDoc, commonValues, new Set([...commonKeys, ...localKeys]));
+        const local = updateEnv(localDoc, localValues, new Set([...commonKeys, ...localKeys]));
+        parseEnv(common);
         parseEnv(local);
         await atomicUpdate(root, [
-          { file: '.env.production', content: production },
+          { file: '.env', content: common },
           { file: '.env.production.local', content: local, secret: true },
         ]);
         const verified = await loadProductionEnv(root);
-        const verifiedProduction = parseEnv(
-          await readFile(resolve(root, '.env.production'), 'utf8')
-        ).values;
+        const verifiedCommon = parseEnv(await readFile(resolve(root, '.env'), 'utf8')).values;
         const verifiedLocal = parseEnv(
           await readFile(resolve(root, '.env.production.local'), 'utf8')
         ).values;
         for (const key of localKeys)
-          if (verifiedProduction.has(key))
+          if (verifiedCommon.has(key))
             throw new Error(
               `保存後検証に失敗しました: local-only key ${key} が公開設定へ混入しています。`
             );
-        for (const [key, expected] of productionValues)
-          if (verifiedProduction.get(key) !== expected)
+        for (const [key, expected] of commonValues)
+          if (verifiedCommon.get(key) !== expected)
             throw new Error(`保存後検証に失敗しました: ${key} の保存値が一致しません。`);
         for (const [key, expected] of localValues)
           if (verifiedLocal.get(key) !== expected)

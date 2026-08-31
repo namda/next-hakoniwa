@@ -33,9 +33,16 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env
 .env*.local
+*.env.bak*
+.env*.bak*
 .setup-backups/
+
+# host-specific Compose configuration
+compose.override.yml
+compose.override.yaml
+compose.override.yml.*
+compose.override.yaml.*
 
 # vercel
 .vercel
