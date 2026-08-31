@@ -24,10 +24,10 @@ describe('env handling', () => {
     expect(parseEnv(`A=${encoded}`).values.get('A')).toBe('p# ss$word');
     expect(() => quoteEnv('bad\nvalue')).toThrow();
   });
-  it('ignores development .env files when resolving production state', async () => {
+  it('loads common values and ignores .env.local when resolving production state', async () => {
     const root = await mkdtemp(join(tmpdir(), 'hakoniwa-env-'));
     try {
-      await writeFile(join(root, '.env'), 'DB_CONNECTION_STRING=develop.sqlite\n');
+      await writeFile(join(root, '.env'), 'NEXT_PUBLIC_TITLE=Common\n');
       await writeFile(join(root, '.env.local'), 'NEXT_PUBLIC_RP_ID=development.local\n');
       await writeFile(join(root, '.env.production'), 'NEXT_PUBLIC_TITLE=Production\n');
       await writeFile(
@@ -35,9 +35,8 @@ describe('env handling', () => {
         'NEXT_PUBLIC_ORIGIN_URL=https://example.com\n'
       );
       const values = await loadProductionEnv(root);
-      expect(values.get('DB_CONNECTION_STRING')).toBeUndefined();
-      expect(values.get('NEXT_PUBLIC_RP_ID')).toBeUndefined();
       expect(values.get('NEXT_PUBLIC_TITLE')).toBe('Production');
+      expect(values.get('NEXT_PUBLIC_RP_ID')).toBeUndefined();
       expect(values.get('NEXT_PUBLIC_ORIGIN_URL')).toBe('https://example.com');
     } finally {
       await rm(root, { recursive: true, force: true });

@@ -55,6 +55,8 @@ COPY --from=builder --chown=node:node /app/package.json ./package.json
 COPY --from=builder --chown=node:node /app/package-lock.json ./package-lock.json
 COPY --from=builder --chown=node:node /app/next.config.mjs ./next.config.mjs
 COPY --from=builder --chown=node:node /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=node:node /app/.env ./.env
+COPY --from=builder --chown=node:node /app/.env.production ./.env.production
 COPY --chown=node:node node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/.next ./.next
 COPY --from=builder --chown=node:node /app/public ./public

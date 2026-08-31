@@ -56,24 +56,18 @@ describe('setup UI helpers', () => {
       expect(command).not.toMatch(/password|pepper|secret/i);
     }
   });
-  it('uses production game settings before example fallbacks for fresh setup', () => {
+  it('uses common settings without treating .env.example as a value source', () => {
     const values = buildFreshBase(
       new Map([
-        ['NEXT_PUBLIC_TURN_CRON', 'example-cron'],
-        ['NEXT_PUBLIC_MAP_SIZE', '12'],
-        ['NEXT_PUBLIC_MAX_MONEY', '9999'],
-        ['ONLY_EXAMPLE', 'fallback'],
-      ]),
-      new Map([
-        ['NEXT_PUBLIC_TURN_CRON', 'production-cron'],
+        ['NEXT_PUBLIC_TURN_CRON', 'common-cron'],
         ['NEXT_PUBLIC_MAP_SIZE', '17'],
         ['NEXT_PUBLIC_MAX_MONEY', '9999999'],
       ])
     );
-    expect(values.get('NEXT_PUBLIC_TURN_CRON')).toBe('production-cron');
+    expect(values.get('NEXT_PUBLIC_TURN_CRON')).toBe('common-cron');
     expect(values.get('NEXT_PUBLIC_MAP_SIZE')).toBe('17');
     expect(values.get('NEXT_PUBLIC_MAX_MONEY')).toBe('9999999');
-    expect(values.get('ONLY_EXAMPLE')).toBe('fallback');
+    expect(values.get('ONLY_EXAMPLE')).toBeUndefined();
     expect(values.get('NEXT_PUBLIC_ORIGIN_URL')).toBe('https://localhost');
     expect(values.get('DOCKER_NEXT_PUBLIC_ORIGIN_URL')).toBe('https://localhost');
     expect(originDefaults(values.get('NEXT_PUBLIC_ORIGIN_URL')!)).toEqual({
@@ -87,7 +81,7 @@ describe('setup UI helpers', () => {
       ['NEXT_PUBLIC_RP_ID', 'example.com'],
       ['ISSUER', 'example.com'],
     ]);
-    const values = buildSetupBase(true, existing, new Map(), new Map());
+    const values = buildSetupBase(true, existing, new Map());
     expect(values.get('NEXT_PUBLIC_ORIGIN_URL')).toBe('https://example.com');
     expect(values.get('NEXT_PUBLIC_RP_ID')).toBe('example.com');
     expect(values.get('ISSUER')).toBe('example.com');
