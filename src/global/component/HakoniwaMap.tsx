@@ -11,6 +11,14 @@ import {
   validLandType,
 } from '@/global/define/planType';
 import { isEqual } from '@/global/function/collection';
+import {
+  generatePlanAutoInput,
+  getAutoInputType,
+  insertGeneratedPlans,
+  planAutoInputDescriptions,
+  planAutoInputOptions,
+  PlanAutoInputType,
+} from '@/global/function/planAutoInput';
 import Image from 'next/image';
 import {
   CSSProperties,
@@ -138,6 +146,13 @@ type HakoniwaMapProps = {
 /* Mapのピクセルサイズ */
 const baseMapPixel = 32;
 const continuousInputStorageKey = 'next-hakoniwa:development:continuous-input';
+const isLoggingAutoInputType = (type: PlanAutoInputType | null) =>
+  type === 'logging' || type === 'logging_and_afforest';
+const isTimesDisabled = (
+  type: PlanAutoInputType | null,
+  usesLoggingThreshold: boolean,
+  maxTimes: number
+) => (type ? !usesLoggingThreshold : maxTimes === 1);
 
 type MapClickModalProps = {
   x: number;
@@ -337,6 +352,7 @@ const MapClickModal = ({
     restrictToAttackOrAid && category !== '攻撃' && category !== '支援' ? '攻撃' : category;
   const [planSelectRows, setPlanSelectRows] = useState(1);
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
+  const [autoInputResult, setAutoInputResult] = useState('');
   const [modalBodyElement, setModalBodyElement] = useState<HTMLDivElement | null>(null);
   const collapsedBodyHeightRef = useRef<number | null>(null);
   const twoRowBodyHeightRef = useRef<number | null>(null);
@@ -362,6 +378,8 @@ const MapClickModal = ({
   const plan = useWatch({ control, name: 'plan' });
   const times = useWatch({ control, name: 'times' });
   const position = useWatch({ control, name: 'position' });
+  const autoInputType = getAutoInputType(plan);
+  const usesLoggingThreshold = isLoggingAutoInputType(autoInputType);
 
   const insertionTurn = useMemo(() => {
     let currentTurn = (turn ?? 0) + 1;
@@ -376,10 +394,7 @@ const MapClickModal = ({
   }, [currentItems, position, turn]);
 
   const insertionTurnText = `T${insertionTurn}`;
-  const insertionTurnFontSize = Math.min(
-    14,
-    50 / Math.max(1, insertionTurnText.length * 0.62)
-  );
+  const insertionTurnFontSize = Math.min(14, 50 / Math.max(1, insertionTurnText.length * 0.62));
 
   // 予測マップタイプ
   const predictedType = useMemo(() => {
@@ -416,7 +431,7 @@ const MapClickModal = ({
       island_info: currentIslandMap,
     } as islandInfoTurnProgress;
 
-    return allPlans.filter((option) => {
+    const normalPlanOptions = allPlans.filter((option) => {
       const planDefine = getPlanDefine(option.value);
       if (restrictToAttackOrAid) {
         if (!isAttackOrAidPlan(option.value)) {
@@ -435,7 +450,24 @@ const MapClickModal = ({
       }
       return planDefine.category === effectiveCategory;
     });
-  }, [x, y, data, effectiveCategory, predictedType, restrictToAttackOrAid]);
+    const canUseAutoInput = !restrictToAttackOrAid && (targetUuid ?? fromUuid) === fromUuid;
+
+    if (effectiveCategory !== '開発') return normalPlanOptions;
+
+    const developmentPlanOptions = canUseAutoInput
+      ? [...normalPlanOptions, ...planAutoInputOptions]
+      : normalPlanOptions;
+
+    return developmentPlanOptions.map((option, index) => {
+      const existingClassName = 'className' in option ? option.className : '';
+
+      return {
+        ...option,
+        className:
+          `${existingClassName ?? ''} ${index % 2 === 0 ? 'bg-gray-50' : 'bg-sky-100'}`.trim(),
+      };
+    });
+  }, [x, y, data, effectiveCategory, predictedType, restrictToAttackOrAid, targetUuid, fromUuid]);
 
   const desktopPlanOptions = useMemo(() => {
     if (planSelectRows <= 1) return planOptions;
@@ -562,6 +594,14 @@ const MapClickModal = ({
   const { minTimes, maxTimes, planDescription } = useMemo(() => {
     if (!planOptions.length || plan === '')
       return { minTimes: 1, maxTimes: 1, planDescription: '' };
+    const selectedAutoInputType = getAutoInputType(plan);
+    if (selectedAutoInputType) {
+      return {
+        minTimes: 0,
+        maxTimes: 99,
+        planDescription: planAutoInputDescriptions[selectedAutoInputType],
+      };
+    }
     const planDefine = getPlanDefine(plan);
     return {
       minTimes: planDefine.minTimes,
@@ -571,19 +611,23 @@ const MapClickModal = ({
   }, [plan, planOptions]);
 
   const hoveredPlanDescription = useMemo(() => {
-    if (
-      !hoveredPlan ||
-      !planOptions.some((option) => String(option.value) === hoveredPlan)
-    ) {
+    if (!hoveredPlan || !planOptions.some((option) => String(option.value) === hoveredPlan)) {
       return '';
     }
-    return getPlanDefine(hoveredPlan).description;
+    const hoveredAutoInputType = getAutoInputType(hoveredPlan);
+    return hoveredAutoInputType
+      ? planAutoInputDescriptions[hoveredAutoInputType]
+      : getPlanDefine(hoveredPlan).description;
   }, [hoveredPlan, planOptions]);
 
   useEffect(() => {
     // planが変更された場合は、その計画で許可される最小値へ戻す
     setValue('times', minTimes);
   }, [plan, minTimes, setValue]);
+
+  useEffect(() => {
+    setAutoInputResult('');
+  }, [plan]);
 
   const handleMainModalOpenToggle = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -594,6 +638,49 @@ const MapClickModal = ({
 
   const handleInsertPlan = () => {
     if (!planOptions.length || plan === '') return;
+
+    const selectedAutoInputType = getAutoInputType(plan);
+    if (selectedAutoInputType) {
+      if (restrictToAttackOrAid || (targetUuid ?? fromUuid) !== fromUuid) return;
+
+      const generatedPlans = generatePlanAutoInput({
+        type: selectedAutoInputType,
+        islandInfo: data,
+        uuid: fromUuid,
+        quantity: isLoggingAutoInputType(selectedAutoInputType) ? Number(times) : 0,
+      });
+      const label =
+        planAutoInputOptions.find((option) => option.value === plan)?.label ?? '自動入力';
+
+      if (generatedPlans.length === 0) {
+        setAutoInputResult('対象がありません');
+        return;
+      }
+
+      const { items, insertedCount } = insertGeneratedPlans({
+        currentItems,
+        generatedPlans,
+        position: Number(position),
+        planLength: META.PLAN_LENGTH,
+        keepPairs: selectedAutoInputType === 'logging_and_afforest',
+      });
+
+      if (insertedCount === 0) {
+        setAutoInputResult(`${label}: 計画枠がありません`);
+        return;
+      }
+
+      setItems(items, true);
+      const nextPosition = Math.min(Number(position) + insertedCount, META.PLAN_LENGTH + 1);
+      setInsertPosition(nextPosition);
+      setValue('position', nextPosition);
+      setAutoInputResult(
+        insertedCount === generatedPlans.length
+          ? `${label}: ${insertedCount}件入力しました`
+          : `${label}: ${insertedCount}件入力 / 対象${generatedPlans.length}件`
+      );
+      return;
+    }
 
     const newPlan = {
       id: -1, // 一時的なID
@@ -698,27 +785,30 @@ const MapClickModal = ({
               control={control}
               options={desktopPlanOptions}
               onMouseLeave={() => setHoveredPlan(null)}
-              size={
-                planSelectRows > 1 ? Math.min(planSelectRows, planOptions.length) : undefined
-              }
+              size={planSelectRows > 1 ? Math.min(planSelectRows, planOptions.length) : undefined}
             />
           </Tooltip>
         )}
       </div>
       <div className="flex items-center gap-2">
         <label className="text-sm whitespace-nowrap" htmlFor={`times`}>
-          計画数
+          {usesLoggingThreshold ? '伐採基準' : '計画数'}
         </label>
         <RangeSliderRHF
           name="times"
           className="flex-1"
-          disabled={maxTimes === 1}
+          disabled={isTimesDisabled(autoInputType, usesLoggingThreshold, maxTimes)}
           control={control}
           min={minTimes}
           max={maxTimes}
           isBottomSpace={false}
         />
       </div>
+      {autoInputResult && (
+        <p className="text-sm text-emerald-700 dark:text-emerald-400" role="status">
+          {autoInputResult}
+        </p>
+      )}
     </div>
   );
 
