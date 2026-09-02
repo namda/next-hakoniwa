@@ -1069,35 +1069,33 @@ const handleMonsterImpact = (
  * @param validRefugees 実際に漂着する難民の数
  * @returns 実際の受け入れ難民数と、発生した場合のみ難民漂着ログ
  */
-const processRefugees = (
+export const processRefugees = (
   fromIsland: IslandWithUser,
   turn: number,
   validRefugees: number
 ): { log?: TurnLog; distributed: number } => {
-  if (validRefugees <= 0) return { distributed: 0 };
-  let refugeesToDistribute = validRefugees;
+  const normalizedRefugees = Math.max(0, Math.floor(validRefugees));
+  if (normalizedRefugees === 0) return { distributed: 0 };
+  let refugeesToDistribute = normalizedRefugees;
   let distributed = 0;
 
   for (let x = 0; x < META_DATA.MAP_SIZE && refugeesToDistribute > 0; x++) {
     for (let y = 0; y < META_DATA.MAP_SIZE && refugeesToDistribute > 0; y++) {
       const mapInfo = fromIsland.island_info[mapArrayConverter(x, y)];
       if (mapInfo.type === 'people') {
-        const add = Math.min(refugeesToDistribute, 50);
-        changeMapData(fromIsland, x, y, 'people', { type: 'add', value: add });
-        const newMapInfo = fromIsland.island_info[mapArrayConverter(x, y)];
-        if (newMapInfo.landValue > 200) {
-          const over = newMapInfo.landValue - 200;
-          changeMapData(fromIsland, x, y, 'people', { type: 'ins', value: 200 });
-          refugeesToDistribute -= add - over;
-          distributed += add - over;
-        } else {
+        const currentPopulation = Math.max(1, Math.min(200, Math.round(mapInfo.landValue)));
+        if (mapInfo.landValue !== currentPopulation) {
+          changeMapData(fromIsland, x, y, 'people', { type: 'ins', value: currentPopulation });
+        }
+        const add = Math.min(refugeesToDistribute, 50, 200 - currentPopulation);
+        if (add > 0) {
+          changeMapData(fromIsland, x, y, 'people', { type: 'add', value: add });
           refugeesToDistribute -= add;
           distributed += add;
         }
       } else if (mapInfo.type === 'plains') {
-        changeMapData(fromIsland, x, y, 'people', { type: 'ins', value: 0 });
-        const add = Math.min(refugeesToDistribute, 10);
-        changeMapData(fromIsland, x, y, 'people', { type: 'add', value: add > 5 ? 5 : add - 5 });
+        const add = Math.min(refugeesToDistribute, 5);
+        changeMapData(fromIsland, x, y, 'people', { type: 'ins', value: add });
         distributed += add;
         refugeesToDistribute -= add;
       }
