@@ -11,7 +11,12 @@ import type { planType } from '@/global/define/planType';
 import { getMapAround, mapArrayConverter } from '@/global/function/island';
 import * as utility from '@/global/function/utility';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { executeMissile, MISSILE_CHARACTERISTICS, type MissileType } from '../missile';
+import {
+  executeMissile,
+  MISSILE_CHARACTERISTICS,
+  processRefugees,
+  type MissileType,
+} from '../missile';
 
 vi.mock('@/global/define/metadata', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/global/define/metadata')>();
@@ -119,5 +124,55 @@ describe('派生ミサイル', () => {
     expect(island.island_info[mapArrayConverter(5, 4)].type).toBe('shallows');
     expect(island.island_info[mapArrayConverter(7, 5)].type).toBe('submarine_missile');
     expect(result.monsterKills).toBe(1);
+  });
+});
+
+describe('難民受入', () => {
+  test.each([1, 2, 3, 4, 5, 6, 10])('難民数%dでも1以上の整数人口マスを作る', (refugees) => {
+    const island = createIsland('from', 'plains');
+
+    const result = processRefugees(island, 2, refugees);
+    const peopleCells = island.island_info.filter(({ type }) => type === 'people');
+
+    expect(result.distributed).toBe(refugees);
+    expect(peopleCells).toHaveLength(1);
+    expect(peopleCells[0].landValue).toBe(refugees);
+    expect(Number.isInteger(peopleCells[0].landValue)).toBe(true);
+  });
+
+  test('小数人口の既存都市を変更せず、整数の難民を別マスへ配置する', () => {
+    const island = createIsland('from', 'sea');
+    setCell(island, 0, 0, 'people', 199.99);
+    setCell(island, 0, 1, 'plains');
+
+    const result = processRefugees(island, 2, 2);
+    const peopleCells = island.island_info.filter(({ type }) => type === 'people');
+
+    expect(result.distributed).toBe(2);
+    expect(peopleCells.map(({ landValue }) => landValue)).toEqual([199.99, 2]);
+  });
+
+  test('既存都市の整数の空き容量だけ受け入れ、残りを別マスへ配置する', () => {
+    const island = createIsland('from', 'sea');
+    setCell(island, 0, 0, 'people', 199);
+    setCell(island, 0, 1, 'plains');
+
+    const result = processRefugees(island, 2, 2);
+    const peopleCells = island.island_info.filter(({ type }) => type === 'people');
+
+    expect(result.distributed).toBe(2);
+    expect(peopleCells.map(({ landValue }) => landValue)).toEqual([200, 1]);
+  });
+
+  test('小数の難民数は処理開始時に切り捨てる', () => {
+    const island = createIsland('from', 'plains');
+
+    const result = processRefugees(island, 2, 5.9);
+    const peopleCells = island.island_info.filter(({ type }) => type === 'people');
+
+    expect(result.distributed).toBe(5);
+    expect(peopleCells).toHaveLength(1);
+    expect(peopleCells[0].landValue).toBe(5);
+    expect(Number.isInteger(peopleCells[0].landValue)).toBe(true);
   });
 });
