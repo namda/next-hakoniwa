@@ -1083,11 +1083,8 @@ export const processRefugees = (
     for (let y = 0; y < META_DATA.MAP_SIZE && refugeesToDistribute > 0; y++) {
       const mapInfo = fromIsland.island_info[mapArrayConverter(x, y)];
       if (mapInfo.type === 'people') {
-        const currentPopulation = Math.max(1, Math.min(200, Math.round(mapInfo.landValue)));
-        if (mapInfo.landValue !== currentPopulation) {
-          changeMapData(fromIsland, x, y, 'people', { type: 'ins', value: currentPopulation });
-        }
-        const add = Math.min(refugeesToDistribute, 50, 200 - currentPopulation);
+        const capacity = Math.max(0, Math.floor(200 - mapInfo.landValue));
+        const add = Math.min(refugeesToDistribute, 50, capacity);
         if (add > 0) {
           changeMapData(fromIsland, x, y, 'people', { type: 'add', value: add });
           refugeesToDistribute -= add;

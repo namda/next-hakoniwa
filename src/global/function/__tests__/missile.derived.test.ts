@@ -140,17 +140,28 @@ describe('難民受入', () => {
     expect(Number.isInteger(peopleCells[0].landValue)).toBe(true);
   });
 
-  test('上限200付近の都市でも小数の難民残数を生成しない', () => {
+  test('小数人口の既存都市を変更せず、整数の難民を別マスへ配置する', () => {
     const island = createIsland('from', 'sea');
-    setCell(island, 0, 0, 'people', 199.99999999999997);
+    setCell(island, 0, 0, 'people', 199.99);
     setCell(island, 0, 1, 'plains');
 
     const result = processRefugees(island, 2, 2);
     const peopleCells = island.island_info.filter(({ type }) => type === 'people');
 
     expect(result.distributed).toBe(2);
-    expect(peopleCells.map(({ landValue }) => landValue)).toEqual([200, 2]);
-    expect(peopleCells.every(({ landValue }) => Number.isInteger(landValue))).toBe(true);
+    expect(peopleCells.map(({ landValue }) => landValue)).toEqual([199.99, 2]);
+  });
+
+  test('既存都市の整数の空き容量だけ受け入れ、残りを別マスへ配置する', () => {
+    const island = createIsland('from', 'sea');
+    setCell(island, 0, 0, 'people', 199);
+    setCell(island, 0, 1, 'plains');
+
+    const result = processRefugees(island, 2, 2);
+    const peopleCells = island.island_info.filter(({ type }) => type === 'people');
+
+    expect(result.distributed).toBe(2);
+    expect(peopleCells.map(({ landValue }) => landValue)).toEqual([200, 1]);
   });
 
   test('小数の難民数は処理開始時に切り捨てる', () => {
