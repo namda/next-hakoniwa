@@ -128,7 +128,7 @@ describe('派生ミサイル', () => {
 });
 
 describe('難民受入', () => {
-  test.each([1, 2, 3, 4, 5])('難民数%dでも1以上の整数人口マスを作る', (refugees) => {
+  test.each([1, 2, 3, 4, 5, 6, 10])('難民数%dでも1以上の整数人口マスを作る', (refugees) => {
     const island = createIsland('from', 'plains');
 
     const result = processRefugees(island, 2, refugees);

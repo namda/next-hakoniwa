@@ -1091,7 +1091,7 @@ export const processRefugees = (
           distributed += add;
         }
       } else if (mapInfo.type === 'plains') {
-        const add = Math.min(refugeesToDistribute, 5);
+        const add = Math.min(refugeesToDistribute, 10);
         changeMapData(fromIsland, x, y, 'people', { type: 'ins', value: add });
         distributed += add;
         refugeesToDistribute -= add;
