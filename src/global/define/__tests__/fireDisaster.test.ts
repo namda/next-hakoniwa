@@ -77,6 +77,17 @@ describe('fireDisaster', () => {
     expect(log?.log).toContain('荒地になりました');
   });
 
+  test('100人の村は20%火災で荒地化し、ログには残人口80人を記録する', () => {
+    const island = createIsland(100);
+    vi.spyOn(utility, 'checkProbability').mockReturnValue(true);
+    vi.spyOn(utility, 'randomIntInRange').mockReturnValue(1);
+
+    const log = fireDisaster(5, 5, 1, island, eventRate);
+
+    expect(island.island_info[mapArrayConverter(5, 5)].type).toBe('wasteland');
+    expect(log?.log).toContain('100人から80人に減少');
+  });
+
   test.each([
     { population: 12_802, roll: 100, expected: 0 },
     { population: 500, roll: 1, expected: 400 },
