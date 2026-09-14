@@ -226,7 +226,7 @@ export function fireDisaster(
 ): TurnLog | undefined {
   const mapInfo = fromIsland.island_info[mapArrayConverter(x, y)];
   const populationUnit = getMapDefine(mapInfo.type).coefficient ?? 1;
-  const currentPopulation = mapInfo.landValue * populationUnit;
+  const currentPopulation = Math.round(mapInfo.landValue * populationUnit);
   const fireRate = (eventRate.fire * currentPopulation * 100) / META_DATA.FIRE.POPULATION_DIVISOR;
   if (checkProbability(fireRate)) {
     const forestNum = countMapAround(fromIsland.island_info, 'forest', x, y, 1);
@@ -244,7 +244,7 @@ export function fireDisaster(
       const damagedPopulation = Math.floor((currentPopulation * scale.damageRate) / 100);
       const remainingPopulation = currentPopulation - damagedPopulation;
       const log = logFire(fromIsland, x, y, scale.name, currentPopulation, remainingPopulation);
-      if (remainingPopulation <= 0) {
+      if (remainingPopulation < populationUnit) {
         changeMapData(fromIsland, x, y, 'wasteland', { type: 'ins', value: 0 });
       } else {
         changeMapData(fromIsland, x, y, 'people', {
