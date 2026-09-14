@@ -24,7 +24,7 @@ export const people: mapType = {
       const addValue = randomIntInRange(-META_DATA.PEOPLE_LOSS.FAMINE, 0);
       const tmpValue = mapInfo.landValue + addValue;
 
-      if (tmpValue > 0) {
+      if (tmpValue >= (this.level?.[0] ?? 1)) {
         if (addValue !== 0) {
           changeMapData(island, x, y, 'people', { type: 'ins', value: tmpValue });
         }

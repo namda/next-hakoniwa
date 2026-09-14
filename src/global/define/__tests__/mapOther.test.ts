@@ -59,6 +59,19 @@ describe('people growth', () => {
     vi.restoreAllMocks();
   });
 
+  test.each([
+    { start: 1.25, loss: -0.25, expected: 'people', value: 1 },
+    { start: 1.25, loss: -0.26, expected: 'plains', value: 0 },
+  ])('飢餓後の最低人口境界: $start + $loss', ({ start, loss, expected, value }) => {
+    vi.spyOn(utility, 'randomIntInRange').mockReturnValue(loss);
+    vi.spyOn(mapTypeModule, 'fireDisaster').mockReturnValue(undefined);
+    const island = createIsland(start, 0, 0);
+    mapOther.people.event?.({ x: 0, y: 0, turn: 1, fromUuid: 'test-uuid', island });
+    const cell = island.island_info[mapArrayConverter(0, 0)];
+    expect(cell.type).toBe(expected);
+    expect(cell.landValue).toBe(value);
+  });
+
   test('propaganda=100 なら都市閾値を超えて増加する', () => {
     vi.spyOn(utility, 'randomIntInRange').mockReturnValue(2);
     vi.spyOn(mapTypeModule, 'fireDisaster').mockReturnValue(undefined);
