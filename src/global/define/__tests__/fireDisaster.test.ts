@@ -91,9 +91,6 @@ describe('fireDisaster', () => {
   test.each([
     { population: 12_802, roll: 100, expected: 0 },
     { population: 500, roll: 1, expected: 400 },
-    { population: 500, roll: 61, expected: 250 },
-    { population: 250, roll: 61, expected: 125 },
-    { population: 125, roll: 61, expected: 0 },
     { population: 198, roll: 61, expected: 0 },
     { population: 200, roll: 61, expected: 100 },
     { population: 100, roll: 1, expected: 0 },
@@ -112,6 +109,26 @@ describe('fireDisaster', () => {
     }
     const saved = JSON.parse(JSON.stringify(island.island_info)) as islandInfo[];
     expect(saved.every((entry) => entry.type !== 'people' || entry.landValue >= 1)).toBe(true);
+  });
+
+  test('500人からの連続した50%火災で250人、125人を経て荒地化する', () => {
+    const island = createIsland(500);
+    vi.spyOn(utility, 'checkProbability').mockReturnValue(true);
+    vi.spyOn(utility, 'randomIntInRange').mockReturnValue(61);
+
+    for (const [turn, expectedPopulation] of [250, 125].entries()) {
+      fireDisaster(5, 5, turn + 1, island, eventRate);
+      const cell = island.island_info[mapArrayConverter(5, 5)];
+      expect(cell.type).toBe('people');
+      expect(Math.round(cell.landValue * 100)).toBe(expectedPopulation);
+      expect(cell.landValue).toBeGreaterThanOrEqual(1);
+    }
+
+    const log = fireDisaster(5, 5, 3, island, eventRate);
+    expect(log?.log).toContain('125人から63人に減少');
+    expect(island.island_info[mapArrayConverter(5, 5)].type).toBe('wasteland');
+    const restored = JSON.parse(JSON.stringify(island.island_info)) as islandInfo[];
+    expect(restored.every((cell) => cell.type !== 'people' || cell.landValue >= 1)).toBe(true);
   });
 
   test('JSON保存後の次ターンでも最低人口を下回る村を残さない', () => {
